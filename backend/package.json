@@ -8,9 +8,10 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "typeorm": "typeorm-ts-node-esm",
+    "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm migration:generate -- -d src/database/data-source.ts",
-    "migration:run": "npm run typeorm migration:run -- -d src/database/data-source.ts"
+    "migration:run": "npm run typeorm migration:run -- -d src/database/data-source.ts",
+    "db:check": "node scripts/check-schema.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

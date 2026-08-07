@@ -29,6 +29,8 @@ import { CrawlerModule } from './crawler/crawler.module';
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '/migration/*{.ts,.js}'],
+        migrationsRun: true,
         synchronize: false,
         // 生产环境关闭 SQL 日志，避免泄露敏感信息
         logging: configService.get('NODE_ENV') !== 'production',
