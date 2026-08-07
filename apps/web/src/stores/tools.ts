@@ -115,28 +115,7 @@ export const useToolsStore = defineStore('tools', () => {
     }
   }
 
-  // 获取多个 favicon 源，用于 fallback
-  /**
-   * 根据名称生成彩色首字母 SVG 图标（作为最终兜底）
-   */
-  function generateInitialIcon(name: string): string {
-    const letter = (name || '?').charAt(0).toUpperCase()
-    // 根据名称生成颜色
-    let hash = 0
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash)
-    }
-    const hue = Math.abs(hash) % 360
-    const color = `hsl(${hue}, 70%, 55%)`
-    const bgColor = `hsl(${hue}, 70%, 95%)`
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-      <rect width="48" height="48" rx="8" fill="${bgColor}"/>
-      <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" 
-            font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
-            font-size="24" font-weight="600" fill="${color}">${letter}</text>
-    </svg>`
-  }
-
+  // 获取多个 favicon 源，用于小尺寸确认弹窗的 fallback。
   function getFaviconSources(url: string): string[] {
     if (!url || url === '#') return []
     try {
@@ -164,48 +143,6 @@ export const useToolsStore = defineStore('tools', () => {
     } catch {
       return []
     }
-  }
-
-  function getToolIconHtml(tool: Tool): string {
-    if (tool.customIcon && tool.customIcon.trim() !== '') {
-      if (tool.customIcon.startsWith('data:image') || tool.customIcon.startsWith('http')) {
-        return `<img src="${tool.customIcon}" style="width:100%;height:100%;object-fit:contain;" alt="">`
-      }
-      if (tool.customIcon.startsWith('<svg')) {
-        return tool.customIcon
-      }
-    }
-
-    if (tool.localPath) {
-      return '<svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" stroke="#6366f1" stroke-width="2"/><path d="M8 21h8M12 17v4"/><rect x="8" y="6" width="8" height="7" rx="1" fill="#6366f1" fill-opacity=".15"/></svg>'
-    }
-
-    // 如果 tool.icon 是 SVG，直接返回
-    if (tool.icon && tool.icon.trim().startsWith('<svg')) {
-      return tool.icon
-    }
-
-    // 如果 tool.icon 是 http(s) 开头的 URL，优先使用它
-    let faviconSources = getFaviconSources(tool.url)
-    if (tool.icon && /^https?:\/\//i.test(tool.icon)) {
-      faviconSources = [tool.icon, ...faviconSources.filter(s => s !== tool.icon)]
-    }
-    if (faviconSources.length > 0) {
-      // 用首字母彩色图标作为最终兜底
-      const defaultSvg = generateInitialIcon(tool.name || '?')
-      const defaultDataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(defaultSvg)
-      
-      // 构建多层 onerror fallback：用计数器逐个尝试，每个源失败自动试下一个，最后用默认图标
-      const allSources = [...faviconSources.slice(1), defaultDataUrl]
-      const sourcesJsArr = allSources.map(s => `'${s.replace(/'/g, "\\'")}'`).join(',')
-      const onerrorStr = `if(!this._i)this._i=0;this._i++;var s=[${sourcesJsArr}];if(this._i<=s.length){this.src=s[this._i-1]}else{this.onerror=null}`
-      
-      return `<img class="tool-favicon" src="${faviconSources[0]}" referrerpolicy="no-referrer" loading="lazy" alt=""
-                onerror="${onerrorStr}"
-                style="width:100%;height:100%;object-fit:contain;">`
-    }
-
-    return generateInitialIcon(tool.name || '?')
   }
 
   function getSmallIconHtml(tool: Tool): string {
@@ -772,7 +709,6 @@ export const useToolsStore = defineStore('tools', () => {
     categoryCounts,
     normalizeTool,
     getToolKey,
-    getToolIconHtml,
     getSmallIconHtml,
     getVisibleTools,
     getDomainFromUrl,

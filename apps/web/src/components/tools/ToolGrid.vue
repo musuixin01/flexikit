@@ -6,8 +6,7 @@
       <p>没有找到匹配的工具</p>
     </div>
 
-    <!-- 卡片网格 —— @error 委托处理 favicon 兜底 -->
-    <div v-else class="cards-grid" ref="gridRef" @error="onFaviconError">
+    <div v-else class="cards-grid" ref="gridRef">
       <ToolCard
         v-for="tool in visibleTools"
         :key="getKey(tool)"
@@ -27,7 +26,6 @@ import Sortable from 'sortablejs'
 import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
 import type { Tool } from '@/types/tool'
-import { DEF_ICON } from '@/data/data'
 import ToolCard from './ToolCard.vue'
 
 const tools = useToolsStore()
@@ -40,49 +38,6 @@ const visibleTools = computed(() => tools.getVisibleTools())
 
 function getKey(tool: Tool): string {
   return (tool.isCustom ? 'custom:' : 'builtin:') + tool.name
-}
-
-// ========== Favicon 兜底处理 ==========
-function onFaviconError(e: Event) {
-  const img = e.target as HTMLImageElement
-  if (!img.classList.contains('tool-favicon')) return
-
-  const fallbackAttempted = img.dataset.fallbackAttempted === 'true'
-
-  if (fallbackAttempted) {
-    // 两次都失败 → 替换为内置 SVG
-    const backupSvg = img.getAttribute('data-svg-backup')
-    if (backupSvg) {
-      const div = document.createElement('div')
-      div.innerHTML = backupSvg
-      const svgEl = div.firstChild
-      if (svgEl) {
-        img.parentElement?.replaceChild(svgEl, img)
-        return
-      }
-    }
-    img.style.display = 'none'
-    return
-  }
-
-  // 首次失败 → 重试一次
-  img.dataset.fallbackAttempted = 'true'
-  const domain = img.getAttribute('data-fallback-domain')
-  if (domain) {
-    img.src = `https://favicon.im/${domain}?size=64`
-  } else {
-    const backupSvg = img.getAttribute('data-svg-backup')
-    if (backupSvg) {
-      const div = document.createElement('div')
-      div.innerHTML = backupSvg
-      const svgEl = div.firstChild
-      if (svgEl) {
-        img.parentElement?.replaceChild(svgEl, img)
-        return
-      }
-    }
-    img.style.display = 'none'
-  }
 }
 
 // ========== 事件转发 ==========

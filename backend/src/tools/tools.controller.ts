@@ -83,15 +83,12 @@ export class ToolsController {
         res.setHeader('Cache-Control', 'public, max-age=86400'); // 缓存 1 天
         return res.send(result.data);
       }
-    } catch (e) {
-      // 失败时返回默认图标
+    } catch {
+      // 由下方统一返回 404，让前端继续尝试其他图标源。
     }
 
-    // 返回默认 SVG 图标
-    const defaultSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><path d="m12 8 2 2-2 2"/></svg>`;
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    return res.send(defaultSvg);
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.status(404).end();
   }
 
   // 获取本地文件图标（需登录，仅用于自定义本地工具）

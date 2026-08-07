@@ -80,8 +80,7 @@
               <div class="rank-number" :class="getRankClass(index)">
                 {{ index + 1 }}
               </div>
-              <!-- 使用与 ToolCard 完全相同的图标容器和逻辑 -->
-              <div class="card-icon" v-html="toolsStore.getToolIconHtml(tool)"></div>
+              <div class="card-icon"><ToolIcon :tool="tool" /></div>
               <div class="rank-info">
                 <div class="rank-name">{{ tool.name }}</div>
                 <div class="rank-desc">{{ tool.description || tool.desc || '' }}</div>
@@ -146,6 +145,7 @@
 import { ref, onMounted } from 'vue';
 import Navbar from '@/components/layout/Navbar.vue';
 import ToolCard from '@/components/tools/ToolCard.vue';
+import ToolIcon from '@/components/tools/ToolIcon.vue';
 import ToolModal from '@/components/tools/ToolModal.vue';
 import ToastMessage from '@/components/common/ToastMessage.vue';
 import { discoveryApi, statsApi } from '@/api';

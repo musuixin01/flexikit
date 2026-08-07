@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
 import * as https from 'https';
+import * as cheerio from 'cheerio';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Tool } from './tool.entity';
@@ -340,36 +341,30 @@ if ($icon) {
     try {
       const baseUrl = new URL(siteUrl);
       
-      // 1. 先尝试获取网页 HTML，解析 favicon 链接
-      let faviconUrl: string | null = null;
-      
+      const candidates: string[] = [];
       try {
         const html = await this.fetchText(siteUrl, 5000);
-        faviconUrl = this.extractFaviconFromHtml(html, baseUrl);
-      } catch (e) {
+        candidates.push(...this.extractFaviconUrlsFromHtml(html, baseUrl));
+      } catch {
         // HTML 获取失败，继续尝试默认路径
       }
 
-      // 2. 如果没找到，用默认路径
-      if (!faviconUrl) {
-        faviconUrl = `${baseUrl.origin}/favicon.ico`;
-      }
+      candidates.push(
+        `${baseUrl.origin}/favicon.ico`,
+        `${baseUrl.origin}/favicon.png`,
+        `${baseUrl.origin}/apple-touch-icon.png`,
+      );
 
-      // 3. 下载 favicon 图片
-      try {
-        const result = await this.downloadImage(faviconUrl, 5000);
-        return result;
-      } catch (e) {
-        // 默认路径失败，再试试 apple-touch-icon
-        const appleIconUrl = `${baseUrl.origin}/apple-touch-icon.png`;
+      for (const faviconUrl of [...new Set(candidates)]) {
         try {
-          const result = await this.downloadImage(appleIconUrl, 5000);
-          return result;
-        } catch (e2) {
-          return null;
+          return await this.downloadImage(faviconUrl, 5000);
+        } catch {
+          // 当前候选失败，继续尝试下一个官网图标。
         }
       }
-    } catch (e) {
+
+      return null;
+    } catch {
       return null;
     }
   }
@@ -423,30 +418,34 @@ if ($icon) {
   /**
    * 从 HTML 中提取 favicon 链接
    */
-  private extractFaviconFromHtml(html: string, baseUrl: URL): string | null {
-    // 匹配各种 favicon link 标签
-    const patterns = [
-      /<link[^>]+rel=["']?icon["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
-      /<link[^>]+rel=["']?shortcut icon["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
-      /<link[^>]+rel=["']?apple-touch-icon["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
-      /<link[^>]+rel=["']?apple-touch-icon-precomposed["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
-    ];
+  private extractFaviconUrlsFromHtml(html: string, baseUrl: URL): string[] {
+    const $ = cheerio.load(html);
+    const candidates: Array<{ url: string; score: number }> = [];
 
-    for (const pattern of patterns) {
-      const match = pattern.exec(html);
-      if (match && match[1]) {
-        let href = match[1];
-        // 处理相对路径
-        if (href.startsWith('/')) {
-          href = `${baseUrl.origin}${href}`;
-        } else if (!href.startsWith('http')) {
-          href = `${baseUrl.origin}/${href}`;
-        }
-        return href;
+    $('link[rel][href]').each((_, element) => {
+      const link = $(element);
+      const rel = (link.attr('rel') || '').toLowerCase();
+      if (!rel.includes('icon')) return;
+
+      const href = link.attr('href');
+      if (!href) return;
+
+      try {
+        const iconUrl = new URL(href, baseUrl);
+        if (!['http:', 'https:'].includes(iconUrl.protocol)) return;
+
+        const sizes = link.attr('sizes') || '';
+        const size = Number.parseInt(sizes.match(/(\d+)x\d+/i)?.[1] || '0', 10);
+        const score = (rel.includes('apple-touch-icon') ? 1000 : 0) + size;
+        candidates.push({ url: iconUrl.href, score });
+      } catch {
+        // 忽略无法解析的图标地址。
       }
-    }
+    });
 
-    return null;
+    return candidates
+      .sort((left, right) => right.score - left.score)
+      .map((candidate) => candidate.url);
   }
 
   /**
@@ -481,6 +480,12 @@ if ($icon) {
         }
 
         const contentType = res.headers['content-type'] || 'image/x-icon';
+        const normalizedContentType = contentType.toLowerCase().split(';')[0].trim();
+        if (!normalizedContentType.startsWith('image/') && normalizedContentType !== 'application/octet-stream') {
+          res.resume();
+          reject(new Error(`Unexpected content type: ${contentType}`));
+          return;
+        }
         const chunks: Buffer[] = [];
         
         res.on('data', (chunk) => chunks.push(chunk));

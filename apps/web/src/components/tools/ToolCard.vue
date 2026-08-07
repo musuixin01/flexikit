@@ -45,7 +45,9 @@
     </div>
 
     <!-- 图标 -->
-    <div class="card-icon" style="--card-icon-bg:var(--color-icon-bg)" v-html="iconHtml"></div>
+    <div class="card-icon" style="--card-icon-bg:var(--color-icon-bg)">
+      <ToolIcon :tool="tool" />
+    </div>
 
     <!-- 名称 + 描述 -->
     <div class="card-body">
@@ -98,7 +100,7 @@
         @mouseleave="onPopupMouseLeave"
       >
         <div class="detail-header">
-          <div class="detail-icon" v-html="iconHtml"></div>
+          <div class="detail-icon"><ToolIcon :tool="tool" /></div>
           <div class="detail-title">
             <h3>{{ tool.name }}</h3>
             <span class="detail-source">{{ sourceLabel }}</span>
@@ -146,7 +148,7 @@
       @click.stop.prevent
     >
         <div class="detail-header">
-          <div class="detail-icon" v-html="iconHtml"></div>
+          <div class="detail-icon"><ToolIcon :tool="tool" /></div>
           <div class="detail-title">
             <h3>{{ tool.name }}</h3>
             <span class="detail-source">{{ sourceLabel }}</span>
@@ -196,6 +198,7 @@ import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
 import { toolsApi } from '@/api/tools'
 import type { Tool } from '@/types/tool'
+import ToolIcon from './ToolIcon.vue'
 
 const props = defineProps<{
   tool: Tool
@@ -218,8 +221,6 @@ const toolKey = computed(() => tools.getToolKey(props.tool))
 const selectMode = computed(() => ui.selectMode)
 const isChecked = computed(() => ui.selectedSet.has(toolKey.value))
 const isFav = computed(() => tools.favoriteTools.has(toolKey.value))
-const iconHtml = computed(() => tools.getToolIconHtml(props.tool))
-
 const isLocal = computed(() => !!(props.tool.localPath))
 const shortLocalPath = computed(() => {
   const p = props.tool.localPath || ''
