@@ -1,0 +1,16 @@
+{
+  "name": "flexikit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FlexiKit - 企业级跨平台AI工具平台",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "dev:backend": "cd backend && npm run start:dev",
+    "build:backend": "cd backend && npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

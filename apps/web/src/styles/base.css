@@ -1,0 +1,204 @@
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root,[data-theme="light"]{
+  /* 主题�?- 可被JS覆盖，默认苹果蓝 */
+  --primary:#6366f1;
+  --primary-hover:#5558e6;
+  --primary-light:rgba(99, 102, 241, 0.10);
+  /* 背景�?- 可被JS覆盖 */
+  --bg-primary:#f0f0f5;
+  --bg-secondary:#ffffff;
+  --bg-tertiary:#f5f5fa;
+  --bg-hover:rgba(0,0,0,0.04);
+  --border:rgba(0,0,0,0.06);
+  /* 布局变量 - 可被JS覆盖 */
+  --radius-lg:18px;
+  --radius-md:12px;
+  --radius-sm:8px;
+  --card-min-height:120px;
+  --card-padding:18px;
+  --card-font-size:14px;
+  --sidebar-order:0;
+  --content-order:1;
+  --grid-columns:4;
+  /* 毛玻�?*/
+  --glass-bg:rgba(255,255,255,.32);
+  --glass-bg-dark:rgba(15,23,42,.8);
+  --glass-border:rgba(255,255,255,.35);
+  --glass-shadow:0 10px 40px 0 rgba(0,0,0,.06);
+  --glass-blur:blur(25px) saturate(210%);
+  /* 文字 */
+  --text-primary:#1c1c1e;
+  --text-secondary:#636366;
+  --text-tertiary:#aeaeb2;
+  /* 兼容旧变�?*/
+  --accent:var(--primary);
+  --accent-soft:var(--primary-light);
+  --sidebar-bg:rgba(255,255,255,.40);
+  --card-hover-bg:rgba(255,255,255,.50);
+  --card-hover-shadow:0 16px 48px 0 rgba(0,0,0,.10);
+  --tag-bg:var(--primary-light);
+  --tag-color:var(--primary);
+  --input-bg:rgba(255,255,255,.45);
+  --divider:var(--border);
+  --btn-ghost-bg:rgba(0,0,0,.04);
+  --btn-ghost-hover:rgba(0,0,0,.08);
+  /* 按钮毛玻�?*/
+  --btn-bg:rgba(255,255,255,0.70);
+  --btn-bg-hover:rgba(255,255,255,0.80);
+  --btn-bg-active:rgba(99,102,241,0.20);
+  --btn-bg-danger:var(--danger-soft);
+  --btn-selected-border:rgba(99,102,241,0.50);
+    --color-btn-bg:#1e293b;
+  --color-btn-text:#ffffff;
+  --color-tag-bg:#e0e7ff;
+  --color-tag-text:#4338ca;
+  --color-icon-bg:rgba(255,255,255,0.5);
+  --overlay-bg:rgba(0,0,0,.25);
+  --modal-bg:rgba(255,255,255,.75);
+  --scrollbar-thumb:rgba(0,0,0,.12);
+  --scrollbar-track:transparent;
+  --logo-gradient:linear-gradient(135deg,#6366f1,#8b5cf6,#f43f5e);
+  --danger:#ff375f;
+  --danger-soft:rgba(255,55,95,.08);
+  --success:#34c759;
+  --body-bg:var(--bg-primary);
+  --grid-color:rgba(0,0,0,.016);
+  --orb-color:rgba(99,102,241,.14);
+  --gradient-base:linear-gradient(180deg,#f0f0f5 0%,#e8e8ed 40%,#f5f5fa 70%,#f0f0f5 100%);
+  --r1:rgba(99,102,241,.10);
+  --r2:rgba(139,92,246,.08);
+  --r3:rgba(244,63,94,.06);
+  --r4:rgba(52,199,89,.05);
+  --card-check-bg:rgba(255,255,255,.65);
+  --card-checked-border:var(--primary);
+  --card-checked-bg:var(--primary-light);
+}
+[data-theme="dark"]{
+  /* 主题�?- 深色模式默认亮蓝�?*/
+  --primary:#818cf8;
+  --primary-hover:#a5b4fc;
+  --primary-light:rgba(129, 140, 248, 0.12);
+  /* 背景�?*/
+  --bg-primary:#0a0a0f;
+  --bg-secondary:#12121a;
+  --bg-tertiary:#1e1e26;
+  --bg-hover:rgba(255,255,255,0.06);
+  --border:rgba(255,255,255,0.06);
+  /* 毛玻�?*/
+  --glass-bg:rgba(18,18,22,.50);
+  --glass-border:rgba(255,255,255,.10);
+  --glass-shadow:0 10px 40px 0 rgba(0,0,0,.24);
+  --glass-blur:blur(25px) saturate(180%);
+  /* 文字 */
+  --text-primary:#f5f5f7;
+  --text-secondary:#a1a1a6;
+  --text-tertiary:#636366;
+  /* 兼容旧变�?*/
+  --accent:var(--primary);
+  --accent-soft:var(--primary-light);
+  --sidebar-bg:rgba(18,18,22,.55);
+  --card-hover-bg:rgba(30,30,38,.55);
+  --card-hover-shadow:0 16px 48px 0 rgba(0,0,0,.40);
+  --tag-bg:var(--primary-light);
+  --tag-color:var(--primary);
+  --input-bg:rgba(30,30,38,.50);
+  --divider:var(--border);
+  --btn-ghost-bg:rgba(255,255,255,.06);
+  --btn-ghost-hover:rgba(255,255,255,.12);
+  /* 按钮毛玻�?*/
+  --btn-bg:rgba(15,23,42,0.70);
+  --btn-bg-hover:rgba(15,23,42,0.80);
+  --btn-bg-active:rgba(129,140,248,0.20);
+  --btn-bg-danger:var(--danger-soft);
+  --btn-selected-border:rgba(129,140,248,0.50);
+    --color-btn-bg:#6366f1;
+  --color-btn-text:#ffffff;
+  --color-tag-bg:#312e81;
+  --color-tag-text:#c7d2fe;
+  --color-icon-bg:rgba(30,41,59,0.5);
+  --overlay-bg:rgba(0,0,0,.55);
+  --modal-bg:rgba(28,28,32,.80);
+  --scrollbar-thumb:rgba(255,255,255,.12);
+  --scrollbar-track:transparent;
+  --danger:#ff6b85;
+  --danger-soft:rgba(255,107,133,.12);
+  --body-bg:var(--bg-primary);
+  --grid-color:rgba(255,255,255,.012);
+  --orb-color:rgba(129,140,248,.10);
+  --gradient-base:linear-gradient(180deg,#0a0a0f 0%,#12121a 40%,#0d0d14 70%,#0a0a0f 100%);
+  --r1:rgba(77,166,255,.10);
+  --r2:rgba(139,92,246,.08);
+  --r3:rgba(244,63,94,.06);
+  --r4:rgba(52,199,89,.04);
+  --card-check-bg:rgba(30,30,38,.65);
+  --card-checked-border:var(--primary);
+  --card-checked-bg:var(--primary-light);
+}
+@media(prefers-color-scheme:dark){[data-theme="auto"]{
+  /* 主题�?- 深色模式默认亮蓝�?*/
+  --primary:#818cf8;
+  --primary-hover:#a5b4fc;
+  --primary-light:rgba(129, 140, 248, 0.12);
+  /* 背景�?*/
+  --bg-primary:#0a0a0f;
+  --bg-secondary:#12121a;
+  --bg-tertiary:#1e1e26;
+  --bg-hover:rgba(255,255,255,0.06);
+  --border:rgba(255,255,255,0.06);
+  /* 毛玻�?*/
+  --glass-bg:rgba(18,18,22,.50);
+  --glass-border:rgba(255,255,255,.10);
+  --glass-shadow:0 10px 40px 0 rgba(0,0,0,.24);
+  --glass-blur:blur(25px) saturate(180%);
+  /* 文字 */
+  --text-primary:#f5f5f7;
+  --text-secondary:#a1a1a6;
+  --text-tertiary:#636366;
+  /* 兼容旧变�?*/
+  --accent:var(--primary);
+  --accent-soft:var(--primary-light);
+  --sidebar-bg:rgba(18,18,22,.55);
+  --card-hover-bg:rgba(30,30,38,.55);
+  --card-hover-shadow:0 16px 48px 0 rgba(0,0,0,.40);
+  --tag-bg:var(--primary-light);
+  --tag-color:var(--primary);
+  --input-bg:rgba(30,30,38,.50);
+  --divider:var(--border);
+  --btn-ghost-bg:rgba(255,255,255,.06);
+  --btn-ghost-hover:rgba(255,255,255,.12);
+  /* 按钮毛玻�?*/
+  --btn-bg:rgba(15,23,42,0.70);
+  --btn-bg-hover:rgba(15,23,42,0.80);
+  --btn-bg-active:rgba(129,140,248,0.20);
+  --btn-bg-danger:var(--danger-soft);
+  --btn-selected-border:rgba(129,140,248,0.50);
+    --color-btn-bg:#6366f1;
+  --color-btn-text:#ffffff;
+  --color-tag-bg:#312e81;
+  --color-tag-text:#c7d2fe;
+  --color-icon-bg:rgba(30,41,59,0.5);
+  --overlay-bg:rgba(0,0,0,.55);
+  --modal-bg:rgba(28,28,32,.80);
+  --scrollbar-thumb:rgba(255,255,255,.12);
+  --scrollbar-track:transparent;
+  --danger:#ff6b85;
+  --danger-soft:rgba(255,107,133,.12);
+  --body-bg:var(--bg-primary);
+  --grid-color:rgba(255,255,255,.012);
+  --orb-color:rgba(129,140,248,.10);
+  --gradient-base:linear-gradient(180deg,#0a0a0f 0%,#12121a 40%,#0d0d14 70%,#0a0a0f 100%);
+  --r1:rgba(77,166,255,.10);
+  --r2:rgba(139,92,246,.08);
+  --r3:rgba(244,63,94,.06);
+  --r4:rgba(52,199,89,.04);
+  --card-check-bg:rgba(30,30,38,.65);
+  --card-checked-border:var(--primary);
+  --card-checked-bg:var(--primary-light);
+}}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","PingFang SC",sans-serif;min-height:100vh;color:var(--text-primary);background:var(--body-bg);overflow-x:hidden}
+#app{display:flex;width:100%;min-height:100vh}
+.bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none}
+.bg-layer::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 39px,var(--grid-color) 39px,var(--grid-color) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,var(--grid-color) 39px,var(--grid-color) 40px),radial-gradient(ellipse 80% 60% at 20% 30%,var(--r1) 0%,transparent 55%),radial-gradient(ellipse 70% 50% at 75% 20%,var(--r2) 0%,transparent 55%),radial-gradient(ellipse 60% 70% at 60% 80%,var(--r3) 0%,transparent 55%),radial-gradient(ellipse 50% 40% at 40% 50%,var(--r4) 0%,transparent 55%),var(--gradient-base)}
+.bg-layer::after{content:"";position:absolute;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,var(--orb-color) 0%,transparent 70%);top:10%;left:5%;filter:blur(60px);animation:floatOrb1 18s ease-in-out infinite}
+@keyframes floatOrb1{0%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(60px,-30px) scale(1.08)}50%{transform:translate(20px,40px) scale(.94)}75%{transform:translate(-30px,-10px) scale(1.04)}}

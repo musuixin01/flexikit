@@ -1,0 +1,509 @@
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as http from 'http';
+import * as https from 'https';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { Tool } from './tool.entity';
+import { CreateToolDto, UpdateToolDto } from './dto';
+import { User } from '../users/user.entity';
+import { validateUrlSafe } from '../common/utils/ssrf.util';
+import { Logger } from '@nestjs/common';
+
+const execFileAsync = promisify(execFile);
+const logger = new Logger('ToolsService');
+
+@Injectable()
+export class ToolsService {
+  constructor(
+    @InjectRepository(Tool)
+    private toolsRepository: Repository<Tool>,
+  ) {}
+
+  // ========== 修复的 findAll ==========
+  async findAll(
+    userId: number | null,
+    query: {
+      category?: string;
+      search?: string;
+      favorite?: boolean;
+      limit?: number;
+      offset?: number;
+    }
+  ) {
+    const { category, search, favorite, limit = 50, offset = 0 } = query;
+    const qb = this.toolsRepository.createQueryBuilder('tool');
+
+    // 核心：未登录只返回内置工具，已登录返回内置+自己的
+    if (userId === null) {
+      qb.where('tool.user_id IS NULL');
+    } else {
+      qb.where('tool.user_id IS NULL OR tool.user_id = :userId', { userId });
+    }
+
+    // 分类筛选
+    if (category && category !== '全部') {
+      qb.andWhere('tool.category = :category', { category });
+    }
+
+    // 搜索
+    if (search) {
+      qb.andWhere(
+        '(tool.name ILIKE :search OR tool.description ILIKE :search OR EXISTS (SELECT 1 FROM unnest(tool.tags) tag WHERE tag ILIKE :search))',
+        { search: `%${search}%` }
+      );
+    }
+
+    // 收藏筛选：只有已登录用户才支持
+    if (favorite && userId !== null) {
+      qb.innerJoin('tool.favorites', 'fav', 'fav.user_id = :userId');
+    }
+
+    qb.orderBy('tool.created_at', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total };
+  }
+
+  // 以下方法保持不变（包含您之前添加的 increment 等）
+  async findOne(id: number): Promise<Tool> {
+    const tool = await this.toolsRepository.findOne({ where: { id } });
+    if (!tool) throw new NotFoundException('Tool not found');
+    return tool;
+  }
+
+  async create(createDto: CreateToolDto, userId: number): Promise<Tool> {
+    const icon = createDto.icon || this.getWebsiteFavicon(createDto.url);
+    const tool = this.toolsRepository.create({
+      ...createDto,
+      icon,
+      user_id: userId,
+      is_custom: true,
+    });
+    return await this.toolsRepository.save(tool);
+  }
+
+  private getWebsiteFavicon(url?: string): string | undefined {
+    if (!url || url === '#') return undefined;
+
+    try {
+      const parsedUrl = new URL(url);
+      return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(parsedUrl.hostname)}&sz=64`;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async update(id: number, updateDto: UpdateToolDto, userId: number): Promise<Tool> {
+    const tool = await this.findOne(id);
+    if (tool.user_id !== userId) {
+      throw new ForbiddenException('Not your tool');
+    }
+    Object.assign(tool, updateDto);
+    return await this.toolsRepository.save(tool);
+  }
+
+  async delete(id: number, userId: number): Promise<void> {
+    const tool = await this.findOne(id);
+    if (tool.user_id !== userId) {
+      throw new ForbiddenException('Not your tool');
+    }
+    await this.toolsRepository.remove(tool);
+  }
+
+  async openTool(id: number, userId: number, fallbackPath?: string) {
+    let localPath: string | null = fallbackPath || null;
+    let url: string | null = null;
+
+    try {
+      const tool = await this.findOne(id);
+      if (tool) {
+        localPath = tool.local_path || localPath;
+        url = tool.url || null;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (localPath) {
+      // 安全验证路径
+      const resolvedPath = path.resolve(localPath.trim());
+      
+      // 验证文件存在
+      if (!fs.existsSync(resolvedPath)) {
+        throw new BadRequestException(`文件不存在: ${resolvedPath}`);
+      }
+      
+      // 只允许常见可执行文件和快捷方式
+      const allowedExtensions = ['.exe', '.lnk', '.url', '.bat', '.cmd', '.msi'];
+      const ext = path.extname(resolvedPath).toLowerCase();
+      if (!allowedExtensions.includes(ext)) {
+        throw new BadRequestException('不支持的文件类型，仅支持可执行文件');
+      }
+
+      try {
+        if (process.platform === 'win32') {
+          // Windows: 使用 cmd /c start，参数数组传递避免注入
+          await execFileAsync('cmd.exe', ['/c', 'start', '', resolvedPath], { timeout: 5000 });
+        } else if (process.platform === 'darwin') {
+          await execFileAsync('open', [resolvedPath], { timeout: 5000 });
+        } else {
+          await execFileAsync('xdg-open', [resolvedPath], { timeout: 5000 });
+        }
+        return { success: true, opened: 'local', path: resolvedPath };
+      } catch (e: any) {
+        logger.error(`打开本地文件失败: ${e.message}`);
+        throw new BadRequestException(`无法打开文件`);
+      }
+    }
+
+    if (url && url !== '#') {
+      // 验证URL协议，只允许http/https
+      try {
+        const urlObj = new URL(url);
+        if (!['http:', 'https:'].includes(urlObj.protocol)) {
+          throw new BadRequestException('不支持的URL协议');
+        }
+      } catch (e) {
+        throw new BadRequestException('无效的URL');
+      }
+
+      try {
+        if (process.platform === 'win32') {
+          await execFileAsync('cmd.exe', ['/c', 'start', '', url], { timeout: 5000 });
+        } else if (process.platform === 'darwin') {
+          await execFileAsync('open', [url], { timeout: 5000 });
+        } else {
+          await execFileAsync('xdg-open', [url], { timeout: 5000 });
+        }
+        return { success: true, opened: 'url', url };
+      } catch (e: any) {
+        logger.error(`打开URL失败: ${e.message}`);
+        throw new BadRequestException(`无法打开链接`);
+      }
+    }
+
+    throw new BadRequestException('该工具没有链接或本地路径');
+  }
+
+  async getLocalIcon(filePath: string) {
+    if (!filePath) {
+      throw new BadRequestException('文件路径不能为空');
+    }
+
+    // 规范化路径，防止路径遍历
+    const resolvedPath = path.resolve(filePath.trim());
+    
+    // 验证文件存在且是文件
+    if (!fs.existsSync(resolvedPath)) {
+      throw new BadRequestException('文件路径无效或不存在');
+    }
+    
+    const stat = fs.statSync(resolvedPath);
+    if (!stat.isFile()) {
+      throw new BadRequestException('路径必须指向文件');
+    }
+
+    // 只允许常见的可执行文件和快捷方式
+    const allowedExtensions = ['.exe', '.lnk', '.url'];
+    const ext = path.extname(resolvedPath).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      throw new BadRequestException('不支持的文件类型，仅支持 .exe, .lnk, .url');
+    }
+
+    // Windows平台才支持提取图标
+    if (process.platform !== 'win32') {
+      return { icon: null };
+    }
+
+    try {
+      // 使用参数传递文件路径，避免命令注入
+      // PowerShell脚本通过-EncodedCommand传递，避免转义问题
+      const psScript = `
+param([string]$iconPath)
+Add-Type -AssemblyName System.Drawing
+$icon = [System.Drawing.Icon]::ExtractAssociatedIcon($iconPath)
+if ($icon) {
+  $bitmap = $icon.ToBitmap()
+  $ms = New-Object System.IO.MemoryStream
+  $bitmap.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+  $bytes = $ms.ToArray()
+  [Convert]::ToBase64String($bytes)
+  $ms.Close()
+  $bitmap.Dispose()
+  $icon.Dispose()
+}
+`;
+      
+      // 将脚本编码为Base64，避免转义问题
+      const encodedScript = Buffer.from(psScript, 'utf16le').toString('base64');
+      
+      const { stdout } = await execFileAsync(
+        'powershell.exe',
+        ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encodedScript, '-iconPath', resolvedPath],
+        { timeout: 5000, maxBuffer: 1024 * 1024 }
+      );
+      const base64 = stdout.trim();
+      if (base64) {
+        return { icon: `data:image/png;base64,${base64}` };
+      }
+    } catch (e: any) {
+      logger.warn(`提取图标失败: ${e.message}`);
+    }
+    return {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><rect x="8" y="6" width="8" height="7" rx="1" fill="#6366f1" fill-opacity=".15"/></svg>`
+    };
+  }
+
+  async deleteBatch(ids: number[], userId: number): Promise<void> {
+    const tools = await this.toolsRepository.find({ where: { id: In(ids) } });
+    const owned = tools.filter(t => t.user_id === userId);
+    if (owned.length !== ids.length) {
+      throw new ForbiddenException('Some tools do not belong to you');
+    }
+    await this.toolsRepository.remove(owned);
+  }
+
+  async incrementView(toolId: number): Promise<void> {
+    await this.toolsRepository.increment({ id: toolId }, 'view_count', 1);
+  }
+
+  async incrementClick(toolId: number): Promise<void> {
+    await this.toolsRepository.increment({ id: toolId }, 'click_count', 1);
+  }
+
+  async incrementFavorite(toolId: number, delta: number = 1): Promise<void> {
+    await this.toolsRepository.increment({ id: toolId }, 'favorite_count', delta);
+  }
+
+  async getRankings(period: string, limit: number) {
+    const qb = this.toolsRepository.createQueryBuilder('tool');
+    
+    // 基于工具更新时间筛选（点击/查看会更新updated_at）
+    if (period === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      qb.where('tool.updated_at >= :today', { today });
+    } else if (period === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      qb.where('tool.updated_at >= :weekAgo', { weekAgo });
+    } else if (period === 'month') {
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      qb.where('tool.updated_at >= :monthAgo', { monthAgo });
+    }
+    
+    // 只显示公开工具（非自定义）
+    qb.andWhere('tool.user_id IS NULL')
+      .orderBy('tool.click_count', 'DESC')
+      .addOrderBy('tool.view_count', 'DESC')
+      .addOrderBy('tool.favorite_count', 'DESC')
+      .take(limit * 2); // 取更多然后计算热度排序
+    
+    const tools = await qb.getMany();
+    
+    // 计算综合热度分：点击权重最高，然后是收藏，最后是浏览
+    // 加入时间衰减：越新的工具权重越高
+    const now = Date.now();
+    const withScore = tools.map(tool => {
+      const ageDays = (now - tool.updated_at.getTime()) / (1000 * 60 * 60 * 24);
+      const timeDecay = Math.max(0.1, 1 - ageDays / 30); // 30天衰减到0.1
+      const hotScore = (
+        tool.click_count * 0.5 + 
+        tool.favorite_count * 0.3 + 
+        tool.view_count * 0.2
+      ) * timeDecay;
+      
+      return {
+        ...tool,
+        hot_score: hotScore,
+      };
+    });
+    
+    withScore.sort((a, b) => b.hot_score - a.hot_score);
+    return withScore.slice(0, limit);
+  }
+
+  // ========== Favicon 解析服务 ==========
+
+  /**
+   * 获取网站 favicon
+   * 先解析 HTML 找 favicon 链接，找不到则用默认 /favicon.ico
+   */
+  async getFavicon(siteUrl: string): Promise<{ data: Buffer; contentType: string } | null> {
+    try {
+      const baseUrl = new URL(siteUrl);
+      
+      // 1. 先尝试获取网页 HTML，解析 favicon 链接
+      let faviconUrl: string | null = null;
+      
+      try {
+        const html = await this.fetchText(siteUrl, 5000);
+        faviconUrl = this.extractFaviconFromHtml(html, baseUrl);
+      } catch (e) {
+        // HTML 获取失败，继续尝试默认路径
+      }
+
+      // 2. 如果没找到，用默认路径
+      if (!faviconUrl) {
+        faviconUrl = `${baseUrl.origin}/favicon.ico`;
+      }
+
+      // 3. 下载 favicon 图片
+      try {
+        const result = await this.downloadImage(faviconUrl, 5000);
+        return result;
+      } catch (e) {
+        // 默认路径失败，再试试 apple-touch-icon
+        const appleIconUrl = `${baseUrl.origin}/apple-touch-icon.png`;
+        try {
+          const result = await this.downloadImage(appleIconUrl, 5000);
+          return result;
+        } catch (e2) {
+          return null;
+        }
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * 发送 HTTP 请求获取文本内容
+   */
+  private async fetchText(url: string, timeout: number = 5000): Promise<string> {
+    // SSRF 检查
+    await validateUrlSafe(url);
+
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+
+      const req = client.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+        timeout,
+      }, (res) => {
+        // 处理重定向（重定向时也要做SSRF检查）
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const redirectUrl = new URL(res.headers.location, url).href;
+          validateUrlSafe(redirectUrl)
+            .then(() => this.fetchText(redirectUrl, timeout).then(resolve).catch(reject))
+            .catch(reject);
+          return;
+        }
+
+        if (!res.statusCode || res.statusCode >= 400) {
+          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
+        }
+
+        let data = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => resolve(data));
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Timeout'));
+      });
+    });
+  }
+
+  /**
+   * 从 HTML 中提取 favicon 链接
+   */
+  private extractFaviconFromHtml(html: string, baseUrl: URL): string | null {
+    // 匹配各种 favicon link 标签
+    const patterns = [
+      /<link[^>]+rel=["']?icon["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
+      /<link[^>]+rel=["']?shortcut icon["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
+      /<link[^>]+rel=["']?apple-touch-icon["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
+      /<link[^>]+rel=["']?apple-touch-icon-precomposed["']?[^>]+href=["']([^"']+)["'][^>]*>/gi,
+    ];
+
+    for (const pattern of patterns) {
+      const match = pattern.exec(html);
+      if (match && match[1]) {
+        let href = match[1];
+        // 处理相对路径
+        if (href.startsWith('/')) {
+          href = `${baseUrl.origin}${href}`;
+        } else if (!href.startsWith('http')) {
+          href = `${baseUrl.origin}/${href}`;
+        }
+        return href;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 下载图片，返回 Buffer 和 Content-Type
+   */
+  private async downloadImage(url: string, timeout: number = 5000): Promise<{ data: Buffer; contentType: string }> {
+    // SSRF 检查
+    await validateUrlSafe(url);
+
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+
+      const req = client.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        timeout,
+      }, (res) => {
+        // 处理重定向（重定向时也要做SSRF检查）
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const redirectUrl = new URL(res.headers.location, url).href;
+          validateUrlSafe(redirectUrl)
+            .then(() => this.downloadImage(redirectUrl, timeout).then(resolve).catch(reject))
+            .catch(reject);
+          return;
+        }
+
+        if (!res.statusCode || res.statusCode >= 400) {
+          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
+        }
+
+        const contentType = res.headers['content-type'] || 'image/x-icon';
+        const chunks: Buffer[] = [];
+        
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const data = Buffer.concat(chunks);
+          if (data.length === 0) {
+            reject(new Error('Empty response'));
+            return;
+          }
+          // 限制图片大小，防止大文件攻击
+          if (data.length > 5 * 1024 * 1024) {
+            reject(new Error('Image too large'));
+            return;
+          }
+          resolve({ data, contentType });
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Timeout'));
+      });
+    });
+  }
+}

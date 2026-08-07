@@ -1,0 +1,3 @@
+packages:
+  - 'apps/*'
+  # backend 保持独立，不加入 workspace

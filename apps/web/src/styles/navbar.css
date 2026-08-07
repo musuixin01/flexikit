@@ -1,0 +1,78 @@
+.top-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 8px 20px;
+  margin-bottom: 20px;
+  height: 56px;
+  box-shadow: var(--glass-shadow);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* 发现页、产品介绍页：导航栏全宽 */
+.discover-page .top-navbar,
+.about-page .top-navbar {
+  width: 100%;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  padding: 10px 32px;
+  height: 60px;
+  margin-bottom: 0;
+  z-index: 50;
+}
+/* 移动端默认隐藏导航栏 */
+@media (max-width: 860px) {
+  .top-navbar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin-bottom: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    box-shadow: var(--glass-shadow);
+  }
+  .top-navbar.visible {
+    display: flex;
+  }
+  /* 移动端导航栏显示时，固定于顶部且无圆角 */
+  .top-navbar.visible {
+    border-radius: 0;
+    margin-bottom: 0;
+  }
+}
+.nav-left{display:flex;align-items:center;gap:16px}
+.nav-logo-wrapper{display:flex;align-items:center;gap:8px}
+.nav-logo-img{width:28px;height:28px;border-radius:8px}
+.nav-logo-text{font-size:1.2rem;font-weight:700;background:var(--logo-gradient);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-0.5px}
+.nav-links{display:flex;gap:8px}
+.nav-link{text-decoration:none;font-size:0.95rem;font-weight:500;color:var(--text-secondary);padding:6px 14px;border-radius:10px;transition:all .3s cubic-bezier(0.25,0.1,0.25,1.0)}
+.nav-link:hover{background:var(--btn-bg-hover);color:var(--accent)}
+.nav-right{display:flex;align-items:center;gap:12px}
+.nav-search-wrapper{position:relative;width:240px;flex-shrink:0}
+.nav-search-wrapper .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-tertiary);pointer-events:none}
+#navSearchInput{width:100%;height:38px;border:none;background:var(--btn-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:12px;padding:0 12px 0 36px;font-size:0.85rem;color:var(--text-primary);transition:all .3s cubic-bezier(0.25,0.1,0.25,1.0)}
+#navSearchInput:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);outline:none}
+.nav-icon{background:var(--btn-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid transparent;font-size:0.9rem;font-weight:500;display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:12px;color:var(--text-secondary);cursor:pointer;transition:all .3s cubic-bezier(0.25,0.1,0.25,1.0)}
+.nav-icon:hover{background:var(--btn-bg-hover);color:var(--text-primary);border-color:var(--glass-border)}
+#navFavCount{font-size:0.7rem;background:var(--text-tertiary);color:#ffffff;border-radius:10px;padding:0 5px;min-width:18px;text-align:center;margin-left:2px}
+/* 用户菜单 */
+.user-menu-wrapper{position:relative}
+.user-avatar-btn{gap:8px!important}
+.user-avatar-emoji{font-size:1.1rem;line-height:1}
+.user-avatar-img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.user-dropdown{position:absolute;top:110%;right:0;min-width:180px;background:var(--modal-bg);backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:200;overflow:hidden;animation:fadeInUp .18s ease-out}
+.dropdown-header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--divider)}
+.dropdown-item-btn{display:block;width:100%;padding:10px 14px;border:none;background:transparent;color:var(--text-secondary);font-size:.8rem;text-align:left;cursor:pointer;transition:background .3s cubic-bezier(0.25,0.1,0.25,1.0)}
+.dropdown-item-btn:hover{background:var(--btn-bg-hover);color:var(--text-primary)}

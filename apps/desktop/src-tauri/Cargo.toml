@@ -1,0 +1,22 @@
+[package]
+name = "flexikit-desktop"
+version = "0.1.0"
+description = "FlexiKit Desktop"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = ["tray-icon", "window-set-theme"] }
+window-vibrancy = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
