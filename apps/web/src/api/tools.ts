@@ -1,4 +1,5 @@
 import api from './index';
+import type { WebsitePreview } from '@/types/tool';
 
 export const toolsApi = {
   getTools: (params?: any) => api.get('/tools', { params }),
@@ -11,4 +12,6 @@ export const toolsApi = {
     api.post(`/tools/${id}/open`, null, { params: fallbackPath ? { path: fallbackPath } : {} }),
   getLocalIcon: (filePath: string) =>
     api.get('/tools/local-icon', { params: { path: filePath } }),
+  getWebsitePreview: (url: string) =>
+    api.get<WebsitePreview>('/tools/preview', { params: { url } }),
 };

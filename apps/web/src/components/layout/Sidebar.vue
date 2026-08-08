@@ -16,7 +16,7 @@
   <aside :class="['sidebar', { collapsed: ui.sidebarCollapsed }]" id="sidebar" role="navigation">
     <!-- 桌面端按钮：始终在侧边栏内，用 position:fixed 突破折叠裁剪 -->
     <button
-      v-if="!ui.isMobile"
+      v-if="!ui.isMobile && !ui.sidebarCollapsed"
       :class="['sidebar-toggle', { 'fixed-mode': ui.sidebarCollapsed }]"
       :style="desktopToggleStyle"
       @click="toggleSidebar"

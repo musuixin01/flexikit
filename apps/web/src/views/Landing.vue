@@ -4,18 +4,19 @@
     <nav class="landing-nav" :class="{ scrolled: isScrolled }">
       <div class="nav-container">
         <div class="nav-left">
-          <div class="nav-brand">
+          <router-link to="/" class="nav-brand" aria-label="返回 FlexiKit 首页">
             <img src="/icon/icon_256x256.ico" alt="FlexiKit" class="brand-logo" />
             <span class="brand-text">FlexiKit</span>
-          </div>
+          </router-link>
           <div class="nav-links">
             <a href="#features">功能</a>
             <a href="#how">使用步骤</a>
-            <a href="#stats">数据</a>
+            <router-link to="/discover">发现工具</router-link>
+            <router-link to="/about">产品介绍</router-link>
           </div>
         </div>
         <div class="nav-right">
-          <button class="nav-icon" @click="toggleTheme" :title="themeIcon === '☀️' ? '浅色模式' : '深色模式'">
+          <button class="nav-icon" @click="toggleTheme" :title="themeToggleLabel" :aria-label="themeToggleLabel">
             {{ themeIcon }}
           </button>
           <template v-if="user.isLoggedIn">
@@ -78,10 +79,24 @@
               <span class="preview-title">我的工具箱</span>
             </div>
             <div class="preview-grid">
-              <div v-for="i in 6" :key="i" class="preview-item">
-                <div class="preview-icon">{{ ['🔧','🎨','⚡','📦','🚀','💡'][i-1] }}</div>
-                <div class="preview-name">{{ ['开发工具','设计资源','快速启动','项目管理','效率提升','灵感笔记'][i-1] }}</div>
-              </div>
+              <button
+                v-for="(item, index) in previewTools"
+                :key="item.name"
+                class="preview-item"
+                :class="{ active: activePreview === index }"
+                type="button"
+                @mouseenter="activePreview = index"
+                @focus="activePreview = index"
+                @click="activePreview = index"
+              >
+                <span class="preview-icon">{{ item.icon }}</span>
+                <span class="preview-name">{{ item.name }}</span>
+              </button>
+            </div>
+            <div class="preview-feedback" aria-live="polite">
+              <span>当前预览</span>
+              <strong>{{ previewTools[activePreview].name }}</strong>
+              <router-link to="/app">进入工具箱体验 →</router-link>
             </div>
           </div>
         </div>
@@ -273,7 +288,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
 
@@ -283,6 +298,17 @@ const ui = useUiStore()
 const themeIcon = ref('🌙')
 const isScrolled = ref(false)
 const animatedStats = reactive<Record<string, number>>({})
+const activePreview = ref(0)
+const themeToggleLabel = computed(() => themeIcon.value === '☀️' ? '切换至深色模式' : '切换至浅色模式')
+
+const previewTools = [
+  { icon: '🔧', name: '开发工具' },
+  { icon: '🎨', name: '设计资源' },
+  { icon: '⚡', name: '快速启动' },
+  { icon: '📦', name: '项目管理' },
+  { icon: '🚀', name: '效率提升' },
+  { icon: '💡', name: '灵感笔记' },
+]
 
 const stats = [
   { label: '内置工具', value: 200, suffix: '+' },
@@ -745,5 +771,69 @@ onUnmounted(() => {
   .cta-buttons { flex-direction: column; align-items: center; }
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
   .nav-links { display: none; }
+}
+/* ===== 统一布局与交互优化 ===== */
+.nav-brand { text-decoration: none; }
+.nav-container,
+.hero-container,
+.section-container { width: min(1580px, calc(100% - 32px)); max-width: 1580px; }
+.landing-nav { transition: background .3s cubic-bezier(.25,.1,.25,1), border-color .3s cubic-bezier(.25,.1,.25,1), box-shadow .3s cubic-bezier(.25,.1,.25,1); }
+.landing-nav.scrolled { box-shadow: 0 12px 40px rgba(15, 23, 42, .06); }
+.nav-links a,
+.nav-links :deep(a) { position: relative; }
+.nav-links a::after,
+.nav-links :deep(a)::after { content: ''; position: absolute; left: 50%; right: 50%; bottom: -8px; height: 2px; border-radius: 2px; background: var(--primary); transition: left .3s cubic-bezier(.25,.1,.25,1), right .3s cubic-bezier(.25,.1,.25,1); }
+.nav-links a:hover::after,
+.nav-links :deep(a):hover::after { left: 0; right: 0; }
+.hero { padding: 112px 16px 58px; min-height: min(740px, 90vh); display: flex; align-items: center; }
+.hero-container { width: 100%; grid-template-columns: minmax(0, 1.05fr) minmax(440px, .95fr); gap: clamp(48px, 7vw, 96px); }
+.hero-desc { max-width: 650px; }
+.hero-preview { transform: perspective(900px) rotateY(-2deg) rotateX(1deg); box-shadow: 0 24px 70px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255,255,255,.36); }
+.preview-grid { padding-bottom: 16px; }
+.preview-item { border: 1px solid transparent; color: inherit; font: inherit; cursor: pointer; }
+.preview-item:hover,
+.preview-item:focus-visible,
+.preview-item.active { transform: translateY(-2px); border-color: color-mix(in srgb, var(--primary) 28%, transparent); background: color-mix(in srgb, var(--primary) 9%, var(--btn-bg)); outline: none; box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 10%, transparent); }
+.preview-feedback { margin: 0 22px 20px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; border-radius: 14px; background: var(--btn-bg); border: 1px solid var(--divider); }
+.preview-feedback span { font-size: .72rem; color: var(--text-tertiary); }
+.preview-feedback strong { font-size: .84rem; color: var(--text-primary); }
+.preview-feedback a { font-size: .76rem; color: var(--primary); text-decoration: none; font-weight: 650; }
+.stats,
+.features,
+.how,
+.why,
+.tech,
+.cta { scroll-margin-top: 96px; }
+.features,
+.how,
+.why,
+.tech { padding-block: 64px; }
+.section-head { margin-bottom: 36px; }
+.glass-card,
+.btn,
+.nav-icon { transition-duration: .3s; transition-timing-function: cubic-bezier(.25,.1,.25,1); }
+.btn:active,
+.nav-icon:active,
+.preview-item:active { transform: scale(.98); }
+@media (max-width: 968px) {
+  .hero { min-height: auto; }
+  .hero-container { grid-template-columns: 1fr; }
+  .hero-right { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 640px) {
+  .nav-container,
+  .hero-container,
+  .section-container { width: 100%; }
+  .nav-links { display: none; }
+  .nav-container { height: 64px; padding-inline: 12px; }
+  .nav-left { min-width: 0; }
+  .nav-right { gap: 6px; }
+  .nav-right .btn { min-height: 40px; padding: 8px 11px; font-size: .78rem; white-space: nowrap; }
+  .nav-icon { width: 40px; height: 40px; padding: 0; flex: 0 0 40px; }
+  .brand-logo { width: 26px; height: 26px; }
+  .brand-text { font-size: 1.05rem; }
+  .hero { padding-top: 108px; }
+  .preview-feedback { grid-template-columns: 1fr auto; }
+  .preview-feedback span { display: none; }
 }
 </style>

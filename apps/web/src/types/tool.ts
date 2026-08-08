@@ -22,6 +22,13 @@ export interface ToolListResponse {
   total: number
 }
 
+export interface WebsitePreview {
+  title: string
+  description: string
+  imageUrl: string | null
+  themeColor: string | null
+}
+
 export interface DeletedItem {
   tool: Tool
   type: 'builtin' | 'custom'

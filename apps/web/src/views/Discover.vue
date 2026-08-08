@@ -1,22 +1,34 @@
 <template>
   <div class="app-layout discover-page">
-    <Navbar force-show-logo />
+    <Navbar force-show-logo :show-favorites="false" />
     <main class="main-content full-width">
 
       <div class="discover-container">
         <!-- Header -->
         <div class="discover-header">
-          <h1 class="discover-title">发现工具</h1>
-          <p class="discover-subtitle">基于你的使用偏好，探索精选工具与热门趋势</p>
+          <div>
+            <span class="discover-eyebrow">EXPLORE · 精选工具库</span>
+            <h1 class="discover-title">发现真正值得使用的工具</h1>
+            <p class="discover-subtitle">从智能推荐、社区热度和最新收录中，快速找到下一件趁手工具。</p>
+          </div>
+          <div class="discover-header-actions">
+            <span class="updated-time" aria-live="polite">{{ lastUpdatedText }}</span>
+            <button class="refresh-btn" type="button" :disabled="loading" @click="refreshDiscover">
+              <span :class="{ spinning: loading }">↻</span>
+              {{ loading ? '刷新中' : '刷新内容' }}
+            </button>
+          </div>
         </div>
 
         <!-- 平台筛选 -->
-        <div class="source-filter">
+        <div class="source-filter" role="tablist" aria-label="工具来源筛选">
           <button
             v-for="s in sourceList"
             :key="s.key"
             class="source-tab"
             :class="{ active: currentSource === s.key }"
+            role="tab"
+            :aria-selected="currentSource === s.key"
             @click="changeSource(s.key)"
           >
             {{ s.label }}
@@ -25,14 +37,14 @@
         </div>
 
         <!-- Section 1: 智能推荐 -->
-        <section class="discover-section">
+        <section id="recommendations" class="discover-section">
           <div class="section-header">
             <h2 class="section-title">
               <span class="section-icon">✨</span> 智能推荐
             </h2>
             <div class="section-actions">
-              <button class="nav-btn" @click="scrollLeft">‹</button>
-              <button class="nav-btn" @click="scrollRight">›</button>
+              <button class="nav-btn" type="button" aria-label="向左浏览推荐工具" @click="scrollLeft">‹</button>
+              <button class="nav-btn" type="button" aria-label="向右浏览推荐工具" @click="scrollRight">›</button>
             </div>
           </div>
           <div class="cards-scroll" ref="recommendScrollRef">
@@ -53,7 +65,7 @@
         </section>
 
         <!-- Section 2: 排行榜 -->
-        <section class="discover-section">
+        <section id="rankings" class="discover-section">
           <div class="section-header">
             <h2 class="section-title">
               <span class="section-icon">🔥</span> 排行榜
@@ -87,7 +99,7 @@
               </div>
               <div class="rank-score">
                 <span class="score-fire">🔥</span>
-                <span class="score-value">{{ tool.hot_score || (Math.random() * 10 + 2).toFixed(1) }}</span>
+                <span class="score-value">{{ tool.hot_score || getFallbackScore(index) }}</span>
               </div>
             </div>
             <!-- 空状态 -->
@@ -99,12 +111,12 @@
         </section>
 
         <!-- Section 3: 最新发现 -->
-        <section class="discover-section">
+        <section id="latest" class="discover-section">
           <div class="section-header">
             <h2 class="section-title">
               <span class="section-icon">🆕</span> 最新发现
             </h2>
-            <a class="view-all" @click="viewAllLatest">查看全部 →</a>
+            <button class="view-all" type="button" @click="viewAllLatest">查看当前收录 →</button>
           </div>
           <div class="cards-grid">
             <ToolCard
@@ -150,6 +162,7 @@ import ToolModal from '@/components/tools/ToolModal.vue';
 import ToastMessage from '@/components/common/ToastMessage.vue';
 import { discoveryApi, statsApi } from '@/api';
 import type { DiscoveryTool } from '@/api/discovery';
+import type { Tool } from '@/types/tool';
 import { useUiStore } from '@/stores/ui';
 import { useToolsStore } from '@/stores/tools';
 import { useUserStore } from '@/stores/user';
@@ -160,8 +173,17 @@ const user = useUserStore();
 
 const toolModalRef = ref<InstanceType<typeof ToolModal> | null>(null);
 
+interface DiscoveryCardTool extends Tool {
+  source?: string;
+  sourceUrl?: string;
+  hotScore?: number;
+  hot_score?: string | number;
+  upvotes?: number;
+  comments?: number;
+}
+
 // 将发现工具转换为前端 Tool 格式
-function discoveryToTool(dt: DiscoveryTool): any {
+function discoveryToTool(dt: DiscoveryTool): DiscoveryCardTool {
   return {
     id: dt.id,
     name: dt.name,
@@ -195,9 +217,10 @@ const rankPeriods = [
 ];
 
 const loading = ref(false);
-const recommendList = ref<any[]>([]);
-const rankList = ref<any[]>([]);
-const latestList = ref<any[]>([]);
+const recommendList = ref<DiscoveryCardTool[]>([]);
+const rankList = ref<DiscoveryCardTool[]>([]);
+const latestList = ref<DiscoveryCardTool[]>([]);
+const lastUpdatedText = ref('等待刷新');
 const latestOffset = ref(0);
 const latestHasMore = ref(true);
 const PAGE_SIZE = 6;
@@ -244,10 +267,9 @@ async function fetchSources() {
 
 // 切换平台
 function changeSource(source: string) {
+  if (currentSource.value === source) return;
   currentSource.value = source;
-  fetchRecommend();
-  fetchRankings();
-  fetchLatest();
+  void refreshDiscover();
 }
 
 // 获取推荐
@@ -288,7 +310,7 @@ async function fetchRankings() {
     if (allTools.length > 0) {
       rankList.value = allTools.slice(0, 10).map((tool, index) => ({
         ...tool,
-        hot_score: (10 - index + Math.random() * 2).toFixed(1),
+        hot_score: getFallbackScore(index),
       }));
     }
   } finally {
@@ -347,7 +369,12 @@ function loadMoreLatest() {
 }
 
 function viewAllLatest() {
-  ui.showToast('查看全部最新工具');
+  document.getElementById('latest')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  ui.showToast(`当前已展示 ${latestList.value.length} 个最新工具`);
+}
+
+function getFallbackScore(index: number): string {
+  return Math.max(2, 11.5 - index * 0.72).toFixed(1);
 }
 
 // 排行名次样式
@@ -369,7 +396,7 @@ function scrollRight() {
 }
 
 // 工具点击记录
-function handleToolClick(tool: any) {
+function handleToolClick(tool: DiscoveryCardTool) {
   statsApi.recordClick(tool.id).catch(() => {});
   if (tool.url && tool.url !== '#') {
     window.open(tool.url, '_blank');
@@ -379,7 +406,7 @@ function handleToolClick(tool: any) {
 }
 
 // 添加工具到我的工具箱（打开编辑模态框）
-function handleAddTool(tool: any) {
+function handleAddTool(tool: DiscoveryCardTool) {
   if (!user.isLoggedIn) {
     ui.showToast('请先登录后再添加工具');
     return;
@@ -394,6 +421,11 @@ function onToolSaved() {
 }
 
 // 初始化加载
+async function refreshDiscover(): Promise<void> {
+  await Promise.all([fetchRecommend(), fetchRankings(), fetchLatest(true)]);
+  lastUpdatedText.value = `更新于 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 onMounted(async () => {
   // 确保工具数据已加载（fallback 时需要）
   if (!toolsStore.isLoaded) {
@@ -401,10 +433,8 @@ onMounted(async () => {
       await toolsStore.initData();
     } catch {}
   }
-  fetchSources();
-  fetchRecommend();
-  fetchRankings();
-  fetchLatest(true);
+  await fetchSources();
+  await refreshDiscover();
 });
 </script>
 
@@ -767,5 +797,51 @@ onMounted(async () => {
   .cards-grid {
     grid-template-columns: 1fr;
   }
+}
+/* ===== 发现页信息密度与交互优化 ===== */
+.discover-page { padding: clamp(16px, 2vw, 28px) clamp(16px, 2.8vw, 44px) 64px; }
+.main-content.full-width { max-width: 1580px !important; padding: 0 !important; }
+.discover-container { gap: clamp(22px, 2.2vw, 34px); margin-top: 18px; }
+.discover-header { display: flex; align-items: end; justify-content: space-between; gap: 32px; margin: 4px 0 0; padding: clamp(26px, 2.6vw, 38px); border: 1px solid var(--glass-border); border-radius: 26px; background: color-mix(in srgb, var(--glass-bg) 84%, transparent); backdrop-filter: blur(28px) saturate(150%); box-shadow: 0 18px 56px rgba(15,23,42,.055), inset 0 1px 0 rgba(255,255,255,.32); }
+.discover-eyebrow { display: block; margin-bottom: 8px; color: var(--primary); font-size: .72rem; font-weight: 750; letter-spacing: .12em; }
+.discover-title { font-size: clamp(1.75rem, 3vw, 2.45rem); letter-spacing: -.035em; }
+.discover-subtitle { max-width: 700px; margin-top: 8px; line-height: 1.7; }
+.discover-header-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.updated-time { color: var(--text-tertiary); font-size: .76rem; }
+.refresh-btn { min-height: 40px; padding: 9px 14px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--divider); border-radius: 12px; background: var(--btn-bg); color: var(--text-primary); font: inherit; font-size: .82rem; font-weight: 650; cursor: pointer; transition: all .3s cubic-bezier(.25,.1,.25,1); }
+.refresh-btn:hover:not(:disabled) { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 30%, transparent); background: var(--primary-light); transform: translateY(-1px); }
+.refresh-btn:active:not(:disabled) { transform: scale(.98); }
+.refresh-btn:disabled { opacity: .62; cursor: wait; }
+.spinning { display: inline-block; animation: refreshSpin .8s cubic-bezier(.25,.1,.25,1) infinite; }
+@keyframes refreshSpin { to { transform: rotate(360deg); } }
+.source-filter { position: sticky; top: 76px; z-index: 45; width: fit-content; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; margin: -10px 0 -6px; padding: 6px; border: 1px solid var(--glass-border); border-radius: 16px; background: color-mix(in srgb, var(--glass-bg) 90%, transparent); backdrop-filter: blur(24px) saturate(160%); box-shadow: 0 12px 34px rgba(15,23,42,.05); }
+.source-filter { scrollbar-width: none; }
+.source-filter::-webkit-scrollbar { display: none; }
+.source-tab { flex: 0 0 auto; border-color: transparent; transition: all .3s cubic-bezier(.25,.1,.25,1); }
+.source-tab:active { transform: scale(.98); }
+.discover-section { scroll-margin-top: 152px; gap: clamp(18px, 1.7vw, 24px); padding: clamp(22px, 2.2vw, 32px); border: 1px solid color-mix(in srgb, var(--glass-border) 78%, transparent); border-radius: 26px; background: color-mix(in srgb, var(--glass-bg) 68%, transparent); box-shadow: 0 14px 44px rgba(15,23,42,.04), inset 0 1px 0 rgba(255,255,255,.22); transition: border-color .3s cubic-bezier(.25,.1,.25,1), box-shadow .3s cubic-bezier(.25,.1,.25,1); }
+.discover-section:hover { border-color: color-mix(in srgb, var(--primary) 16%, var(--glass-border)); box-shadow: 0 20px 54px rgba(15,23,42,.055), inset 0 1px 0 rgba(255,255,255,.26); }
+.section-title { margin: 0; }
+.cards-scroll { scroll-snap-type: x proximity; padding: 4px 2px 14px; }
+.cards-scroll .tool-card { scroll-snap-align: start; flex-basis: 300px; }
+.nav-btn,
+.rank-tab,
+.view-all,
+.load-more-btn { transition: all .3s cubic-bezier(.25,.1,.25,1); }
+.nav-btn:active,
+.rank-tab:active,
+.view-all:active,
+.load-more-btn:active { transform: scale(.98); }
+.view-all { border: 0; background: transparent; font: inherit; }
+.rank-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rank-item { min-width: 0; border-radius: 16px; transition: background .3s cubic-bezier(.25,.1,.25,1), transform .3s cubic-bezier(.25,.1,.25,1), border-color .3s cubic-bezier(.25,.1,.25,1); }
+.rank-item:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--primary) 18%, var(--glass-border)); }
+@media (max-width: 760px) {
+  .discover-page { padding: 12px 12px 40px; }
+  .discover-header { align-items: flex-start; flex-direction: column; padding: 20px; }
+  .discover-header-actions { width: 100%; justify-content: space-between; }
+  .source-filter { top: 86px; width: 100%; }
+  .discover-section { padding: 18px 14px; border-radius: 20px; }
+  .rank-list { grid-template-columns: 1fr; }
 }
 </style>

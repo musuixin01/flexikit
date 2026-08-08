@@ -1,7 +1,7 @@
 <template>
   <div class="app-layout profile-page">
     <main class="main-content full-width">
-      <Navbar force-show-logo />
+      <Navbar force-show-logo :show-search="false" :show-favorites="false" />
 
       <div class="profile-container">
         <!-- 已登录状态 -->
@@ -61,12 +61,25 @@
             </div>
           </div>
 
+          <nav class="profile-view-tabs" aria-label="个人中心内容导航">
+            <button
+              v-for="view in profileViews"
+              :key="view.key"
+              type="button"
+              :class="{ active: activeProfileView === view.key }"
+              :aria-pressed="activeProfileView === view.key"
+              @click="activeProfileView = view.key"
+            >
+              <span>{{ view.icon }}</span>{{ view.label }}
+            </button>
+          </nav>
+
           <!-- 主网格 -->
-          <div class="profile-grid">
+          <div class="profile-grid" :data-view="activeProfileView">
             <!-- 左栏 -->
             <div class="profile-left">
               <!-- 收藏管理 -->
-              <section class="section-card">
+              <section class="section-card overview-panel">
                 <h3 class="section-title">⭐ 收藏管理</h3>
                 <div v-if="favoriteTools.length === 0" class="empty-state">暂无收藏</div>
                 <div v-else class="favorite-list">
@@ -83,7 +96,7 @@
               </section>
 
               <!-- 历史记录 -->
-              <section class="section-card">
+              <section class="section-card activity-panel">
                 <h3 class="section-title">📜 历史记录</h3>
                 <div class="history-tabs">
                   <button class="tab-btn" :class="{ active: historyTab === 'tools' }" @click="historyTab = 'tools'">访问</button>
@@ -115,13 +128,13 @@
               </section>
 
               <!-- 工具快捷区 -->
-              <section class="section-card">
+              <section class="section-card overview-panel">
                 <h3 class="section-title">🚀 工具快捷区</h3>
                 <div class="quick-tools">
-                  <div v-for="tool in quickTools" :key="tool.id" class="quick-tool" @click="openTool(tool.url)">
+                  <button v-for="tool in quickTools" :key="tool.id" type="button" class="quick-tool" @click="openTool(tool.url)">
                     <span class="quick-icon">{{ tool.icon || '🔗' }}</span>
                     <span class="quick-name">{{ tool.name }}</span>
-                  </div>
+                  </button>
                   <button class="add-quick-btn" @click="addQuickTool">+ 添加</button>
                 </div>
               </section>
@@ -130,7 +143,7 @@
             <!-- 右栏 -->
             <div class="profile-right">
               <!-- 账户设置 -->
-              <section class="section-card">
+              <section class="section-card account-panel">
                 <h3 class="section-title">🔐 账户设置</h3>
                 <div class="setting-item">
                   <span>修改密码</span>
@@ -147,7 +160,7 @@
               </section>
 
               <!-- 使用统计 -->
-              <section class="section-card">
+              <section class="section-card activity-panel">
                 <h3 class="section-title">📊 使用统计</h3>
                 <div class="stats-detail">
                   <div class="stat-row">
@@ -177,7 +190,7 @@
               </section>
 
               <!-- 我的偏好 -->
-              <section class="section-card">
+              <section class="section-card preferences-panel">
                 <h3 class="section-title">🎯 我的工具偏好</h3>
                 <div class="preference-item">
                   <span>常用分类</span>
@@ -207,10 +220,21 @@
         <!-- 未登录状态 -->
         <div v-else class="not-logged-in">
           <div class="login-prompt">
-            <span class="prompt-icon">👤</span>
-            <h2>请先登录</h2>
-            <p>登录后查看个人数据与统计信息</p>
-            <router-link to="/login" class="login-link">去登录</router-link>
+            <div class="login-prompt-copy">
+              <span class="prompt-kicker">PERSONAL WORKSPACE</span>
+              <span class="prompt-icon">👤</span>
+              <h2>让你的工具箱真正属于你</h2>
+              <p>登录后同步收藏、查看使用趋势，并在不同设备间延续自己的工作流。</p>
+              <div class="login-actions">
+                <router-link to="/login" class="login-link">登录账户</router-link>
+                <router-link to="/login?tab=register" class="register-link">免费注册</router-link>
+              </div>
+            </div>
+            <div class="login-benefits" aria-label="登录后可用功能">
+              <div><span>✓</span><strong>收藏与快捷工具同步</strong><small>常用工具触手可及</small></div>
+              <div><span>✓</span><strong>使用数据一目了然</strong><small>了解自己的效率习惯</small></div>
+              <div><span>✓</span><strong>偏好驱动智能推荐</strong><small>发现更适合你的工具</small></div>
+            </div>
           </div>
         </div>
       </div>
@@ -226,6 +250,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
+import type { Tool } from '@/types/tool'
 import Navbar from '@/components/layout/Navbar.vue'
 import ToastMessage from '@/components/common/ToastMessage.vue'
 
@@ -233,6 +258,14 @@ const user = useUserStore()
 const tools = useToolsStore()
 const ui = useUiStore()
 const router = useRouter()
+type ProfileView = 'overview' | 'activity' | 'preferences' | 'account'
+const activeProfileView = ref<ProfileView>('overview')
+const profileViews: Array<{ key: ProfileView; label: string; icon: string }> = [
+  { key: 'overview', label: '概览', icon: '◫' },
+  { key: 'activity', label: '动态', icon: '↗' },
+  { key: 'preferences', label: '偏好', icon: '◎' },
+  { key: 'account', label: '账户', icon: '⚙' },
+]
 
 // ===== 安全计算属性 =====
 const toolList = computed(() => tools.tools || [])
@@ -259,7 +292,7 @@ const favoriteTools = computed(() => {
   return toolList.value.filter(t => favKeys.has(t.is_custom ? `custom:${t.name}` : `builtin:${t.name}`))
 })
 
-async function removeFavorite(tool: any) {
+async function removeFavorite(tool: Tool) {
   const key = tool.is_custom ? `custom:${tool.name}` : `builtin:${tool.name}`
   await tools.toggleFavorite(key)
 }
@@ -269,6 +302,11 @@ function viewAllFavorites() {
 }
 
 function openAllFavorites() {
+  if (favoriteTools.value.length === 0) {
+    ui.showToast('暂无可打开的收藏工具')
+    return
+  }
+  if (favoriteTools.value.length > 3 && !window.confirm(`即将打开 ${favoriteTools.value.length} 个网页，是否继续？`)) return
   favoriteTools.value.forEach(t => window.open(t.url, '_blank'))
   ui.showToast('已打开所有收藏')
 }
@@ -287,6 +325,7 @@ const historyClicks = ref([
   { id: 1, name: 'Cursor', time: '15分钟前' },
 ])
 function clearHistory() {
+  if (!window.confirm('确定清空全部访问、搜索和点击记录吗？')) return
   historyTools.value = []
   historySearches.value = []
   historyClicks.value = []
@@ -299,7 +338,11 @@ const quickTools = ref([
   { id: 2, name: 'draw.io', url: 'https://app.diagrams.net/', icon: '📊' },
 ])
 function openTool(url: string) {
-  window.open(url, '_blank')
+  if (!url) {
+    ui.showToast('该快捷工具暂无有效链接')
+    return
+  }
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 function addQuickTool() {
   ui.showToast('添加快捷工具（可在设置中配置）')
@@ -889,5 +932,83 @@ onMounted(() => {
   .stats-grid {
     grid-template-columns: 1fr;
   }
+}
+/* ===== 个人中心视图与交互优化 ===== */
+.profile-page { padding: 14px clamp(12px, 1.6vw, 24px) 44px; }
+.main-content.full-width { max-width: 1680px; }
+.profile-container { gap: 18px; margin-top: 16px; }
+.profile-header-card { border-radius: 24px; box-shadow: 0 16px 50px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.28); }
+.stats-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stat-card { text-align: left; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-items: center; padding: 16px; transition: transform .3s cubic-bezier(.25,.1,.25,1), border-color .3s cubic-bezier(.25,.1,.25,1), box-shadow .3s cubic-bezier(.25,.1,.25,1); }
+.stat-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--primary) 24%, transparent); box-shadow: 0 12px 34px rgba(15,23,42,.07); }
+.stat-icon { grid-row: 1 / 3; margin: 0; }
+.stat-number { font-size: 1.35rem; line-height: 1.1; }
+.profile-view-tabs { align-self: center; display: flex; gap: 4px; padding: 6px; border: 1px solid var(--glass-border); border-radius: 16px; background: var(--glass-bg); backdrop-filter: blur(22px) saturate(150%); box-shadow: 0 10px 30px rgba(15,23,42,.05); }
+.profile-view-tabs button { min-width: 96px; padding: 9px 15px; display: inline-flex; justify-content: center; align-items: center; gap: 7px; border: 0; border-radius: 11px; background: transparent; color: var(--text-secondary); font: inherit; font-size: .84rem; font-weight: 650; cursor: pointer; transition: all .3s cubic-bezier(.25,.1,.25,1); }
+.profile-view-tabs button:hover { color: var(--text-primary); background: var(--btn-bg); }
+.profile-view-tabs button.active { color: var(--primary); background: var(--primary-light); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 15%, transparent); }
+.profile-view-tabs button:active { transform: scale(.98); }
+.profile-grid[data-view="overview"] .activity-panel,
+.profile-grid[data-view="overview"] .preferences-panel,
+.profile-grid[data-view="overview"] .account-panel,
+.profile-grid[data-view="activity"] .overview-panel,
+.profile-grid[data-view="activity"] .preferences-panel,
+.profile-grid[data-view="activity"] .account-panel,
+.profile-grid[data-view="preferences"] .overview-panel,
+.profile-grid[data-view="preferences"] .activity-panel,
+.profile-grid[data-view="preferences"] .account-panel,
+.profile-grid[data-view="account"] .overview-panel,
+.profile-grid[data-view="account"] .activity-panel,
+.profile-grid[data-view="account"] .preferences-panel { display: none; }
+.profile-grid[data-view="activity"],
+.profile-grid[data-view="preferences"],
+.profile-grid[data-view="account"] { grid-template-columns: minmax(0, 820px); justify-content: center; }
+.profile-grid[data-view="activity"] .profile-left:empty,
+.profile-grid[data-view="preferences"] .profile-left,
+.profile-grid[data-view="account"] .profile-left { display: none; }
+.profile-grid[data-view="activity"] .profile-left { display: block; }
+.section-card { margin-bottom: 18px; box-shadow: 0 14px 42px rgba(15,23,42,.055), inset 0 1px 0 rgba(255,255,255,.24); }
+.quick-tool { font: inherit; }
+.action-btn,
+.quick-tool,
+.add-quick-btn,
+.setting-btn,
+.tab-btn,
+.link-btn { transition: all .3s cubic-bezier(.25,.1,.25,1); }
+.action-btn:active,
+.quick-tool:active,
+.add-quick-btn:active,
+.setting-btn:active,
+.tab-btn:active { transform: scale(.98); }
+.not-logged-in { min-height: calc(100vh - 180px); }
+.login-prompt { max-width: 920px; padding: 22px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 18px; text-align: left; border-radius: 26px; }
+.login-prompt-copy { padding: 24px; }
+.prompt-kicker { display: block; margin-bottom: 18px; color: var(--primary); font-size: .7rem; font-weight: 750; letter-spacing: .12em; }
+.prompt-icon { width: 58px; height: 58px; margin: 0 0 18px; display: grid; place-items: center; border-radius: 18px; background: var(--primary-light); font-size: 30px; }
+.login-prompt h2 { font-size: clamp(1.55rem, 3vw, 2.15rem); letter-spacing: -.035em; }
+.login-prompt p { max-width: 520px; line-height: 1.75; }
+.login-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.login-link,
+.register-link { min-height: 44px; padding: 10px 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; text-decoration: none; font-weight: 650; transition: all .3s cubic-bezier(.25,.1,.25,1); }
+.register-link { color: var(--text-primary); background: var(--btn-bg); border: 1px solid var(--divider); }
+.login-link:active,
+.register-link:active { transform: scale(.98); }
+.login-benefits { padding: 18px; display: grid; gap: 10px; align-content: center; border-radius: 20px; background: color-mix(in srgb, var(--primary) 6%, var(--btn-bg)); border: 1px solid color-mix(in srgb, var(--primary) 14%, transparent); }
+.login-benefits > div { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; padding: 14px; border-radius: 14px; background: color-mix(in srgb, var(--glass-bg) 82%, transparent); }
+.login-benefits span { grid-row: 1 / 3; color: var(--primary); font-weight: 800; }
+.login-benefits strong { color: var(--text-primary); font-size: .9rem; }
+.login-benefits small { color: var(--text-tertiary); margin-top: 3px; }
+@media (max-width: 900px) {
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-view-tabs { width: 100%; overflow-x: auto; justify-content: flex-start; }
+  .profile-view-tabs button { min-width: 88px; flex: 1 0 auto; }
+  .login-prompt { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .profile-page { padding-inline: 12px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { grid-template-columns: auto 1fr; }
+  .login-prompt { padding: 12px; }
+  .login-prompt-copy { padding: 14px; }
 }
 </style>

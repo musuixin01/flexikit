@@ -1,5 +1,5 @@
 <template>
-  <div class="app-layout" :style="{ '--grid-columns': ui.effectiveGridColumns }">
+  <div class="app-layout workspace-page" :style="{ '--grid-columns': ui.effectiveGridColumns }">
     <Sidebar
       @open-add-modal="openAddModal"
       @batch-delete="onBatchDelete"
@@ -8,16 +8,24 @@
     />
     <main class="main-content">
       <Navbar />
-      <div class="content-header">
-        <h2>{{ ui.activeCategory === '全部' ? '全部工具' : ui.activeCategory }}</h2>
-        <span class="result-count">共 {{ tools.getVisibleTools().length }} 个工具</span>
-      </div>
-      <ToolGrid
-        @check-click="onCheckClick"
-        @edit="onEdit"
-        @delete="onDelete"
-        @toggle-fav="onToggleFav"
-      />
+      <section class="workspace-content" aria-labelledby="workspace-title">
+        <div class="content-header workspace-header">
+          <div class="workspace-heading">
+            <span class="workspace-eyebrow">WORKSPACE · 我的工具空间</span>
+            <h2 id="workspace-title">{{ ui.activeCategory === '全部' ? '全部工具' : ui.activeCategory }}</h2>
+            <p>集中管理常用网站与本地应用，拖拽即可调整顺序。</p>
+          </div>
+          <span class="result-count">{{ tools.getVisibleTools().length }} 个工具</span>
+        </div>
+        <div class="workspace-grid">
+          <ToolGrid
+            @check-click="onCheckClick"
+            @edit="onEdit"
+            @delete="onDelete"
+            @toggle-fav="onToggleFav"
+          />
+        </div>
+      </section>
     </main>
   </div>
 
@@ -189,3 +197,141 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
 })
 </script>
+
+<style scoped>
+.workspace-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(12px, 1vw, 18px);
+  gap: clamp(16px, 1.2vw, 20px);
+}
+
+.workspace-page :deep(.sidebar-toggle:not(.fixed-mode)) {
+  top: 24px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+}
+
+.workspace-content {
+  padding: 0 2px 40px;
+}
+
+.workspace-header {
+  align-items: center;
+  margin: 0 2px 10px;
+  padding: 2px 2px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--divider) 72%, transparent);
+}
+
+.workspace-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--glass-border));
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgb(255 255 255 / 20%), transparent 54%), var(--primary-light);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--primary) 6%, transparent), inset 0 1px 0 rgb(255 255 255 / 24%);
+  backdrop-filter: blur(14px) saturate(145%);
+  -webkit-backdrop-filter: blur(14px) saturate(145%);
+  color: var(--primary);
+  font-size: .61rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  order: 2;
+}
+
+.workspace-header h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 1.7vw, 1.65rem);
+  letter-spacing: -.035em;
+  order: 1;
+}
+
+.workspace-header p {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--divider);
+  color: var(--text-secondary);
+  font-size: .76rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  order: 3;
+}
+
+.workspace-header .result-count {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, white 16%, var(--glass-border));
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgb(255 255 255 / 18%), transparent 52%), color-mix(in srgb, var(--glass-bg) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 6px 18px rgb(15 23 42 / 5%), inset 0 1px 0 rgb(255 255 255 / 22%);
+}
+
+:global([data-theme="dark"]) .workspace-eyebrow {
+  background: linear-gradient(145deg, rgb(255 255 255 / 4.5%), transparent 54%), color-mix(in srgb, var(--primary) 7%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 19%, rgb(255 255 255 / 4%));
+  box-shadow: 0 5px 16px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+:global([data-theme="dark"]) .workspace-header .result-count {
+  background: linear-gradient(145deg, rgb(255 255 255 / 4%), transparent 52%), rgb(255 255 255 / 2%);
+  border-color: rgb(255 255 255 / 6.5%);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 10%), inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+
+.workspace-grid :deep(.cards-grid) {
+  gap: clamp(14px, 1.25vw, 18px);
+  padding-bottom: 48px;
+}
+
+@media (max-width: 860px) {
+  .workspace-page {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .workspace-content {
+    padding: 6px 0 32px;
+  }
+
+  .workspace-header {
+    align-items: flex-start;
+    margin-inline: 2px;
+  }
+
+  .workspace-heading {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .workspace-header p {
+    width: 100%;
+    padding-left: 0;
+    border-left: 0;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 560px) {
+  .workspace-header p {
+    max-width: 27rem;
+  }
+
+  .workspace-header .result-count {
+    padding: 6px 10px;
+  }
+}
+</style>

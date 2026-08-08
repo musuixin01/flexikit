@@ -333,6 +333,60 @@ if ($icon) {
 
   // ========== Favicon 解析服务 ==========
 
+  async getWebsitePreview(siteUrl: string): Promise<{
+    title: string;
+    description: string;
+    imageUrl: string | null;
+    themeColor: string | null;
+  } | null> {
+    try {
+      const baseUrl = new URL(siteUrl);
+      const html = await this.fetchText(baseUrl.href, 7000);
+      const $ = cheerio.load(html);
+
+      const getMetaContent = (...selectors: string[]): string => {
+        for (const selector of selectors) {
+          const content = $(selector).first().attr('content')?.trim();
+          if (content) return content;
+        }
+        return '';
+      };
+
+      const resolveAssetUrl = (value: string): string | null => {
+        if (!value) return null;
+        try {
+          const url = new URL(value, baseUrl);
+          return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+        } catch {
+          return null;
+        }
+      };
+
+      const title = (
+        getMetaContent('meta[property="og:title"]', 'meta[name="twitter:title"]') ||
+        $('title').first().text().trim() ||
+        baseUrl.hostname
+      ).slice(0, 160);
+      const description = getMetaContent(
+        'meta[property="og:description"]',
+        'meta[name="twitter:description"]',
+        'meta[name="description"]',
+      ).slice(0, 320);
+      const imageUrl = resolveAssetUrl(getMetaContent(
+        'meta[property="og:image:secure_url"]',
+        'meta[property="og:image"]',
+        'meta[name="twitter:image"]',
+        'meta[name="twitter:image:src"]',
+      ));
+      const rawThemeColor = getMetaContent('meta[name="theme-color"]').slice(0, 32);
+      const themeColor = /^#[0-9a-f]{3,8}$/i.test(rawThemeColor) ? rawThemeColor : null;
+
+      return { title, description, imageUrl, themeColor };
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * 获取网站 favicon
    * 先解析 HTML 找 favicon 链接，找不到则用默认 /favicon.ico
@@ -403,7 +457,12 @@ if ($icon) {
 
         let data = '';
         res.setEncoding('utf8');
-        res.on('data', (chunk) => { data += chunk; });
+        res.on('data', (chunk) => {
+          data += chunk;
+          if (data.length > 2 * 1024 * 1024) {
+            req.destroy(new Error('HTML response too large'));
+          }
+        });
         res.on('end', () => resolve(data));
       });
 

@@ -9,8 +9,9 @@
         </router-link>
         <div class="nav-links">
           <router-link to="/">首页</router-link>
-          <router-link to="/app">工具箱</router-link>
           <router-link to="/discover">发现</router-link>
+          <a href="#capabilities">核心能力</a>
+          <router-link to="/app" class="nav-cta">进入工具箱</router-link>
         </div>
       </div>
     </nav>
@@ -34,12 +35,25 @@
           <div class="hero-tags">
             <span>v1.0</span><span>MIT 开源</span><span>永久免费</span><span>Vue 3 + NestJS</span>
           </div>
+          <div class="hero-actions">
+            <router-link to="/app" class="btn-primary">免费开始使用</router-link>
+            <a href="#story" class="btn-secondary">了解设计理念</a>
+          </div>
         </div>
       </div>
     </section>
 
+    <nav class="about-subnav" aria-label="产品介绍页目录">
+      <a href="#story" :class="{ active: activeSection === 'story' }">产品故事</a>
+      <a href="#principles" :class="{ active: activeSection === 'principles' }">设计原则</a>
+      <a href="#capabilities" :class="{ active: activeSection === 'capabilities' }">核心能力</a>
+      <a href="#architecture" :class="{ active: activeSection === 'architecture' }">技术架构</a>
+      <a href="#roadmap" :class="{ active: activeSection === 'roadmap' }">发展路线</a>
+      <a href="#faq" :class="{ active: activeSection === 'faq' }">常见问题</a>
+    </nav>
+
     <!-- ===== 产品故事 ===== -->
-    <section class="story">
+    <section id="story" class="story">
       <div class="about-container">
         <div class="story-card glass-card">
           <div class="story-grid">
@@ -75,7 +89,7 @@
     </section>
 
     <!-- ===== 设计哲学 ===== -->
-    <section class="philosophy">
+    <section id="principles" class="philosophy">
       <div class="about-container">
         <div class="section-head">
           <span class="section-tag">设计哲学</span>
@@ -92,7 +106,7 @@
     </section>
 
     <!-- ===== 核心功能（两列展开） ===== -->
-    <section class="features">
+    <section id="capabilities" class="features">
       <div class="about-container">
         <div class="section-head">
           <span class="section-tag">核心能力</span>
@@ -114,7 +128,7 @@
     </section>
 
     <!-- ===== 技术架构 ===== -->
-    <section class="architecture">
+    <section id="architecture" class="architecture">
       <div class="about-container">
         <div class="section-head">
           <span class="section-tag">技术架构</span>
@@ -153,7 +167,7 @@
     </section>
 
     <!-- ===== 对比 ===== -->
-    <section class="compare">
+    <section id="comparison" class="compare">
       <div class="about-container">
         <div class="section-head">
           <span class="section-tag">为什么 FlexiKit</span>
@@ -177,7 +191,7 @@
     </section>
 
     <!-- ===== 路线图 ===== -->
-    <section class="roadmap">
+    <section id="roadmap" class="roadmap">
       <div class="about-container">
         <div class="section-head">
           <span class="section-tag">发展路线</span>
@@ -203,19 +217,19 @@
     </section>
 
     <!-- ===== FAQ ===== -->
-    <section class="faq">
+    <section id="faq" class="faq">
       <div class="about-container">
         <div class="section-head">
           <span class="section-tag">常见问题</span>
           <h2>你可能想问</h2>
         </div>
         <div class="faq-grid">
-          <div v-for="(item, i) in faqs" :key="i" class="faq-item glass-card" :class="{ open: openFaq === i }" @click="toggleFaq(i)">
-            <div class="faq-q">
+          <div v-for="(item, i) in faqs" :key="i" class="faq-item glass-card" :class="{ open: openFaq === i }">
+            <button class="faq-q" type="button" :aria-expanded="openFaq === i" :aria-controls="`faq-answer-${i}`" @click="toggleFaq(i)">
               <span>{{ item.q }}</span>
               <svg class="faq-arrow" :class="{ rotated: openFaq === i }" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div class="faq-a" v-show="openFaq === i">
+            </button>
+            <div :id="`faq-answer-${i}`" class="faq-a" v-show="openFaq === i">
               <p>{{ item.a }}</p>
             </div>
           </div>
@@ -280,10 +294,28 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const isScrolled = ref(false)
 const openFaq = ref<number | null>(null)
+const activeSection = ref('story')
+const sectionIds = ['story', 'principles', 'capabilities', 'architecture', 'roadmap', 'faq'] as const
+let sectionObserver: IntersectionObserver | null = null
 
 function onScroll() { isScrolled.value = window.scrollY > 20 }
-onMounted(() => window.addEventListener('scroll', onScroll))
-onUnmounted(() => window.removeEventListener('scroll', onScroll))
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  sectionObserver = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
+    if (visible?.target.id) activeSection.value = visible.target.id
+  }, { rootMargin: '-24% 0px -58% 0px', threshold: [0.08, 0.2, 0.45] })
+  sectionIds.forEach((id) => {
+    const section = document.getElementById(id)
+    if (section) sectionObserver?.observe(section)
+  })
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll)
+  sectionObserver?.disconnect()
+})
 
 function toggleFaq(i: number) {
   openFaq.value = openFaq.value === i ? null : i
@@ -668,5 +700,71 @@ const faqs = [
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
   .cta-card { padding: 40px 20px; }
   .cta-card h2 { font-size: 1.4rem; }
+}
+/* ===== 页面层级与长页导航优化 ===== */
+.about-container,
+.nav-container { width: min(1340px, calc(100% - clamp(32px, 5vw, 72px))); max-width: 1340px; padding-inline: 0; }
+.about-nav { transition: background .3s cubic-bezier(.25,.1,.25,1), border-color .3s cubic-bezier(.25,.1,.25,1), box-shadow .3s cubic-bezier(.25,.1,.25,1); }
+.about-nav.scrolled { box-shadow: 0 12px 40px rgba(15,23,42,.06); }
+.nav-cta { padding: 9px 16px; border-radius: 12px; color: #fff !important; background: var(--primary); box-shadow: 0 8px 20px color-mix(in srgb, var(--primary) 18%, transparent); }
+.hero { padding: 104px 0 54px; }
+.hero-content { max-width: 920px; margin: 0 auto; }
+.hero-logo { width: 72px; height: 72px; margin-bottom: 14px; }
+.hero-desc { max-width: 800px; }
+.hero-actions { margin-top: 24px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.btn-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 20px; border-radius: 12px; color: var(--text-primary); text-decoration: none; font-weight: 650; background: var(--btn-bg); border: 1px solid var(--divider); }
+.about-subnav { position: sticky; top: 70px; z-index: 80; width: min(880px, calc(100% - 32px)); margin: 0 auto 10px; padding: 8px; display: flex; gap: 4px; overflow-x: auto; border: 1px solid var(--glass-border); border-radius: 16px; background: var(--glass-bg); backdrop-filter: blur(22px) saturate(150%); box-shadow: 0 12px 38px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.28); }
+.about-subnav { scrollbar-width: none; }
+.about-subnav::-webkit-scrollbar { display: none; }
+.about-subnav a { flex: 0 0 auto; padding: 8px 12px; border-radius: 10px; color: var(--text-secondary); text-decoration: none; font-size: .82rem; font-weight: 600; transition: color .3s cubic-bezier(.25,.1,.25,1), background .3s cubic-bezier(.25,.1,.25,1), transform .3s cubic-bezier(.25,.1,.25,1); }
+.about-subnav a:hover,
+.about-subnav a.active { color: var(--primary); background: var(--primary-light); }
+.about-subnav a.active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent); }
+.about-subnav a:active { transform: scale(.98); }
+.story,
+.philosophy,
+.features,
+.architecture,
+.compare,
+.roadmap,
+.faq { scroll-margin-top: 138px; }
+.story { padding: 44px 0 72px; }
+.philosophy,
+.features { padding: 72px 0; }
+.architecture,
+.compare { padding: 76px 0; }
+.roadmap,
+.faq { padding: 68px 0; }
+.section-head { max-width: 720px; margin: 0 auto 38px; }
+.story-card { padding: clamp(32px, 4vw, 52px); }
+.phil-grid,
+.features-grid { gap: clamp(16px, 1.7vw, 22px); }
+.phil-card,
+.feature-card,
+.highlight-item,
+.tl-card { transition: transform .3s cubic-bezier(.25,.1,.25,1), border-color .3s cubic-bezier(.25,.1,.25,1), box-shadow .3s cubic-bezier(.25,.1,.25,1); }
+.phil-card:hover,
+.feature-card:hover { transform: translateY(-3px); box-shadow: 0 18px 46px rgba(15,23,42,.055); }
+.faq-item { cursor: default; }
+.faq-q { width: 100%; border: 0; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; transition: background .3s cubic-bezier(.25,.1,.25,1); }
+.faq-q:hover { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.faq-q:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary) 55%, transparent); outline-offset: -3px; }
+.faq-a { animation: faqReveal .3s cubic-bezier(.25,.1,.25,1); }
+@keyframes faqReveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.glass-card,
+.btn-primary,
+.btn-secondary { transition: all .3s cubic-bezier(.25,.1,.25,1); }
+.btn-primary:active,
+.btn-secondary:active { transform: scale(.98); }
+@media (max-width: 768px) {
+  .about-container,
+  .nav-container { width: 100%; }
+  .about-subnav { top: 64px; justify-content: flex-start; }
+  .nav-links a:not(.nav-cta) { display: none; }
+  .hero { padding-top: 92px; }
+  .about-container,
+  .nav-container { padding-inline: 18px; }
+  .story { padding-block: 34px 52px; }
+  .philosophy,.features,.architecture,.compare,.roadmap,.faq { padding-block: 52px; }
 }
 </style>

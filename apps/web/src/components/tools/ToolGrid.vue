@@ -61,7 +61,16 @@ function initSortable() {
     animation: 200,
     handle: '.tool-card',
     draggable: '.tool-card',
+    ghostClass: 'tool-card-drag-ghost',
+    chosenClass: 'tool-card-drag-chosen',
+    dragClass: 'tool-card-dragging',
+    onStart: () => {
+      document.documentElement.classList.add('tool-sort-active')
+      window.dispatchEvent(new Event('flexikit-tool-drag-start'))
+    },
     onEnd: () => {
+      document.documentElement.classList.remove('tool-sort-active')
+      window.dispatchEvent(new Event('flexikit-tool-drag-end'))
       const cards = gridRef.value!.querySelectorAll('.tool-card')
       const newOrder = Array.from(cards)
         .map(card => {
@@ -83,6 +92,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.documentElement.classList.remove('tool-sort-active')
   if (cardSortable) cardSortable.destroy()
 })
 </script>

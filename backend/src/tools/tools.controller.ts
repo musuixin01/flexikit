@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, Response } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, Response, NotFoundException } from '@nestjs/common';
 import { ToolsService } from './tools.service';
 import { CreateToolDto, UpdateToolDto } from './dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -89,6 +89,15 @@ export class ToolsController {
 
     res.setHeader('Cache-Control', 'public, max-age=300');
     return res.status(404).end();
+  }
+
+  @Get('preview')
+  async getWebsitePreview(@Query('url') siteUrl: string) {
+    if (!siteUrl) throw new BadRequestException('Missing url parameter');
+
+    const preview = await this.toolsService.getWebsitePreview(siteUrl);
+    if (!preview) throw new NotFoundException('Website preview unavailable');
+    return preview;
   }
 
   // 获取本地文件图标（需登录，仅用于自定义本地工具）

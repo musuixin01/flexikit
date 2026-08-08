@@ -1,6 +1,16 @@
 <template>
   <div :class="['top-navbar', { visible: showMobileNavBar }]" id="topNavbar">
     <div class="nav-left">
+      <button
+        v-if="!ui.isMobile && ui.sidebarCollapsed"
+        class="nav-sidebar-toggle"
+        type="button"
+        aria-label="展开侧边栏"
+        title="展开侧边栏"
+        @click="expandSidebar"
+      >
+        <img :src="sidebarToggleIcon" alt="" aria-hidden="true">
+      </button>
       <!-- Logo 区域：forceShowLogo 为 true 或满足条件时显示 -->
       <div
         class="nav-logo-wrapper"
@@ -10,7 +20,7 @@
         <img src="/icon/icon_256x256.ico" alt="FlexiKit" class="nav-logo-img">
         <span class="nav-logo-text">FlexiKit</span>
       </div>
-      <div class="nav-links">
+      <div v-if="showNavLinks" class="nav-links">
         <router-link to="/app" class="nav-link">首页</router-link>
         <router-link to="/discover" class="nav-link">发现</router-link>
         <router-link to="/about" class="nav-link">产品介绍</router-link>
@@ -19,7 +29,7 @@
 
     <div class="nav-right">
       <!-- 搜索框 -->
-      <div class="nav-search-wrapper">
+      <div v-if="showSearch" class="nav-search-wrapper">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="11" cy="11" r="8"/>
           <path d="m21 21-4.35-4.35"/>
@@ -34,27 +44,58 @@
         >
       </div>
 
-      <!-- 主题切换 -->
-      <button class="nav-icon" id="navThemeToggle" @click="onToggleTheme" aria-label="主题切换">
-        {{ themeIconText }}
+      <div class="nav-control-cluster" role="group" aria-label="快捷操作">
+        <!-- 主题切换 -->
+        <button
+        class="nav-icon nav-glass-action theme-action"
+        :class="{ dark: isDarkTheme }"
+        id="navThemeToggle"
+        type="button"
+        :aria-label="themeToggleLabel"
+        :title="themeToggleLabel"
+        @click="onToggleTheme"
+      >
+        <span class="theme-glyph" aria-hidden="true">
+          <svg class="sun-glyph" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3.7" />
+            <path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" />
+          </svg>
+          <svg class="moon-glyph" viewBox="0 0 24 24">
+            <path d="M20.2 15.2A8.7 8.7 0 0 1 8.8 3.8 8.7 8.7 0 1 0 20.2 15.2Z" />
+          </svg>
+        </span>
       </button>
 
-      <!-- 设置按钮 -->
-      <button class="nav-icon" @click="ui.toggleSettingsPanel()" aria-label="设置">
+        <!-- 设置按钮 -->
+        <button class="nav-icon nav-glass-action settings-action" type="button" @click="ui.toggleSettingsPanel()" aria-label="设置" title="外观与布局设置">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
       </button>
 
-      <!-- 收藏 -->
-      <button class="nav-icon" id="navFavBtn" v-if="showFavorites" @click="onToggleFav">
-        ⭐ <span id="navFavCount">{{ tools.favoriteTools.size }}</span>
-      </button>
+        <!-- 收藏 -->
+        <button
+        v-if="showFavorites"
+        class="nav-icon nav-glass-action favorite-action"
+        :class="{ active: ui.showOnlyFav }"
+        id="navFavBtn"
+        type="button"
+        :aria-pressed="ui.showOnlyFav"
+        :aria-label="ui.showOnlyFav ? '显示全部工具' : '仅显示收藏工具'"
+        :title="ui.showOnlyFav ? '显示全部工具' : '仅显示收藏工具'"
+        @click="onToggleFav"
+      >
+        <svg class="favorite-glyph" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m12 3.2 2.72 5.51 6.08.88-4.4 4.29 1.04 6.05L12 17.07l-5.44 2.86 1.04-6.05-4.4-4.29 6.08-.88L12 3.2Z" />
+        </svg>
+        <span id="navFavCount">{{ tools.favoriteTools.size }}</span>
+        </button>
+      </div>
 
       <!-- 用户区 -->
       <div v-if="user.isLoggedIn" class="user-menu-wrapper" ref="userMenuRef">
-        <button class="nav-icon user-avatar-btn" @click="showUserMenu = !showUserMenu">
+        <button class="nav-icon user-avatar-btn nav-account-action" @click="showUserMenu = !showUserMenu">
           <span v-if="user.profile?.avatarType === 'emoji'" class="user-avatar-emoji">
             {{ user.profile?.avatar || '👤' }}
           </span>
@@ -96,7 +137,7 @@
       </div>
 
       <!-- 未登录：显示登录按钮 -->
-      <router-link v-else to="/login" class="nav-icon" style="text-decoration:none;">
+      <router-link v-else to="/login" class="nav-icon nav-account-action" style="text-decoration:none;">
         👤 登录
       </router-link>
     </div>
@@ -111,12 +152,17 @@ import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
 
 // ========== Props ==========
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   forceShowLogo?: boolean  // 强制显示 Logo（用于无侧边栏页面）
   showSearch?: boolean     // 是否显示搜索框
   showFavorites?: boolean  // 是否显示收藏按钮
   showNavLinks?: boolean   // 是否显示导航链接
-}>()
+}>(), {
+  forceShowLogo: false,
+  showSearch: true,
+  showFavorites: true,
+  showNavLinks: true,
+})
 
 // 默认值
 const showSearch = computed(() => props.showSearch !== false)
@@ -129,7 +175,7 @@ const user = useUserStore()
 const router = useRouter()
 
 // ========== 状态 ==========
-const themeIconText = ref('🌙')
+const isDarkTheme = ref(false)
 const showMobileNavBar = ref(true)
 const showUserMenu = ref(false)
 const userMenuRef = ref<HTMLElement | null>(null)
@@ -139,6 +185,8 @@ const showNavLogo = computed(() => {
   if (props.forceShowLogo) return true
   return ui.isMobile || ui.sidebarCollapsed
 })
+
+const themeToggleLabel = computed(() => isDarkTheme.value ? '切换至亮色模式' : '切换至暗色模式')
 
 // ========== 搜索 ==========
 function onNavSearch(e: Event) {
@@ -153,7 +201,17 @@ function updateThemeIcon() {
   if (theme === 'auto') {
     effective = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   }
-  themeIconText.value = effective === 'dark' ? '🌙' : '☀️'
+  isDarkTheme.value = effective === 'dark'
+}
+
+const sidebarToggleIcon = computed(() => isDarkTheme.value
+  ? '/icon/sidebar_white.png'
+  : '/icon/sidebar_black.png')
+
+function expandSidebar() {
+  ui.sidebarCollapsed = false
+  localStorage.setItem('flexikit-sidebar-collapsed', 'false')
+  nextTick(handleScroll)
 }
 
 function onToggleTheme() {
@@ -268,7 +326,7 @@ watch(() => ui.sidebarCollapsed, () => {
   position: sticky;
   top: 0;
   z-index: 20;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s cubic-bezier(.25,.1,.25,1);
 }
 
 /* 移动端隐藏 */
@@ -291,6 +349,38 @@ watch(() => ui.sidebarCollapsed, () => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+.nav-sidebar-toggle {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 24%, transparent);
+  transition: background .3s cubic-bezier(.25,.1,.25,1), border-color .3s cubic-bezier(.25,.1,.25,1), transform .3s cubic-bezier(.25,.1,.25,1);
+}
+.nav-sidebar-toggle img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+.nav-sidebar-toggle:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--glass-border));
+}
+.nav-sidebar-toggle:active {
+  transform: scale(.98);
+}
+.nav-sidebar-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
 }
 .nav-logo-wrapper {
   display: flex;
@@ -321,22 +411,48 @@ watch(() => ui.sidebarCollapsed, () => {
   font-weight: 500;
   color: var(--text-secondary);
   padding: 6px 14px;
+  border: 1px solid transparent;
   border-radius: 10px;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(.25,.1,.25,1);
 }
 .nav-link:hover {
-  background: var(--accent-soft);
+  background: linear-gradient(145deg, rgb(255 255 255 / 18%), transparent 52%), color-mix(in srgb, var(--primary) 7%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--primary) 15%, var(--glass-border));
   color: var(--accent);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 7%, transparent), inset 0 1px 0 rgb(255 255 255 / 22%);
+  transform: translateY(-1px) scale(1.02);
 }
 .nav-link.router-link-active {
-  background: var(--accent-soft);
+  background: linear-gradient(145deg, rgb(255 255 255 / 24%), transparent 50%), var(--accent-soft);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--glass-border));
   color: var(--accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%);
 }
+.nav-link:active { transform: scale(.98); }
+.nav-link:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary) 52%, transparent); outline-offset: 2px; }
 
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+.nav-control-cluster {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 42px;
+  padding: 3px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 18%), transparent 48%),
+    color-mix(in srgb, var(--glass-bg) 72%, transparent);
+  border: 1px solid color-mix(in srgb, white 24%, var(--glass-border));
+  border-radius: 15px;
+  box-shadow:
+    0 8px 24px rgb(15 23 42 / 6%),
+    inset 0 1px 0 rgb(255 255 255 / 30%),
+    inset 0 0 0 1px rgb(255 255 255 / 5%);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 .nav-search-wrapper {
   position: relative;
@@ -356,18 +472,21 @@ watch(() => ui.sidebarCollapsed, () => {
   width: 100%;
   height: 36px;
   border: none;
-  background: var(--input-bg);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
+  background: linear-gradient(145deg, rgb(255 255 255 / 15%), transparent 50%), var(--input-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid color-mix(in srgb, white 16%, var(--glass-border));
   border-radius: 12px;
   padding: 0 12px 0 36px;
   font-size: 0.85rem;
   color: var(--text-primary);
-  transition: all 0.2s;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
+  transition: all 0.3s cubic-bezier(.25,.1,.25,1);
 }
+#navSearchInput:hover { border-color: color-mix(in srgb, var(--primary) 20%, var(--glass-border)); }
 #navSearchInput:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: color-mix(in srgb, var(--primary) 58%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent), 0 8px 24px color-mix(in srgb, var(--primary) 7%, transparent), inset 0 1px 0 rgb(255 255 255 / 28%);
   outline: none;
 }
 .nav-icon {
@@ -382,22 +501,212 @@ watch(() => ui.sidebarCollapsed, () => {
   border-radius: 12px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(.25,.1,.25,1);
   text-decoration: none;
 }
 .nav-icon:hover {
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+.nav-icon.nav-glass-action {
+  position: relative;
+  isolation: isolate;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--text-primary) 78%, var(--primary));
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 28%), transparent 46%),
+    color-mix(in srgb, var(--glass-bg) 76%, transparent);
+  border: 1px solid color-mix(in srgb, white 32%, var(--glass-border));
+  border-radius: 13px;
+  box-shadow:
+    0 8px 24px rgb(15 23 42 / 7%),
+    0 1px 0 rgb(255 255 255 / 46%) inset,
+    0 0 0 1px rgb(255 255 255 / 8%) inset;
+  backdrop-filter: blur(20px) saturate(165%);
+  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  transition: color .3s cubic-bezier(.25,.1,.25,1), background .3s cubic-bezier(.25,.1,.25,1), border-color .3s cubic-bezier(.25,.1,.25,1), box-shadow .3s cubic-bezier(.25,.1,.25,1), transform .3s cubic-bezier(.25,.1,.25,1);
+}
+.nav-control-cluster .nav-icon.nav-glass-action {
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 11px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.nav-control-cluster .nav-icon.nav-glass-action::before { opacity: 0; }
+.nav-control-cluster .nav-icon.nav-glass-action:hover {
+  background: linear-gradient(145deg, rgb(255 255 255 / 30%), transparent 52%), color-mix(in srgb, var(--primary) 9%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--primary) 16%, var(--glass-border));
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--primary) 8%, transparent), inset 0 1px 0 rgb(255 255 255 / 34%);
+  transform: scale(1.02);
+}
+.nav-control-cluster .nav-icon.nav-glass-action:active { transform: scale(.98); }
+.nav-icon.nav-glass-action::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 30px;
+  height: 24px;
+  top: -13px;
+  left: 4px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--primary) 28%, white), transparent 70%);
+  filter: blur(5px);
+  opacity: .38;
+  pointer-events: none;
+  transition: opacity .3s cubic-bezier(.25,.1,.25,1), transform .3s cubic-bezier(.25,.1,.25,1);
+}
+.nav-icon.nav-glass-action:hover {
+  color: var(--primary);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 38%), transparent 48%),
+    color-mix(in srgb, var(--primary) 9%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--primary) 30%, white 24%);
+  box-shadow:
+    0 10px 28px color-mix(in srgb, var(--primary) 13%, transparent),
+    0 1px 0 rgb(255 255 255 / 58%) inset,
+    0 0 0 1px color-mix(in srgb, var(--primary) 9%, transparent) inset;
+  transform: scale(1.02) translateY(-1px);
+}
+.nav-icon.nav-glass-action:hover::before { opacity: .72; transform: translateX(4px); }
+.nav-icon.nav-glass-action:active { transform: scale(.98); }
+.nav-icon.nav-glass-action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 52%, transparent);
+  outline-offset: 2px;
+}
+
+.theme-glyph {
+  position: relative;
+  display: block;
+  width: 19px;
+  height: 19px;
+}
+.theme-glyph svg {
+  position: absolute;
+  inset: 0;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity .3s cubic-bezier(.25,.1,.25,1), transform .3s cubic-bezier(.25,.1,.25,1);
+}
+.sun-glyph { opacity: 1; transform: rotate(0deg) scale(1); }
+.moon-glyph { opacity: 0; transform: rotate(-24deg) scale(.68); }
+.theme-action.dark .sun-glyph { opacity: 0; transform: rotate(42deg) scale(.68); }
+.theme-action.dark .moon-glyph { opacity: 1; transform: rotate(0deg) scale(1); }
+
+.nav-icon.favorite-action {
+  min-width: 57px;
+  gap: 6px;
+  padding: 0 8px 0 10px;
+}
+.nav-control-cluster .nav-icon.favorite-action {
+  width: auto;
+  min-width: 53px;
+  padding: 0 7px 0 8px;
+}
+.favorite-glyph {
+  width: 18px;
+  height: 18px;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: fill .3s cubic-bezier(.25,.1,.25,1), stroke .3s cubic-bezier(.25,.1,.25,1), transform .3s cubic-bezier(.25,.1,.25,1), filter .3s cubic-bezier(.25,.1,.25,1);
+}
+.favorite-action.active {
+  color: var(--primary);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 40%), transparent 46%),
+    color-mix(in srgb, var(--primary) 12%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--primary) 34%, white 22%);
+  box-shadow:
+    0 9px 26px color-mix(in srgb, var(--primary) 15%, transparent),
+    0 1px 0 rgb(255 255 255 / 58%) inset,
+    0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent) inset;
+}
+.nav-control-cluster .favorite-action.active {
+  background: linear-gradient(145deg, rgb(255 255 255 / 28%), transparent 50%), color-mix(in srgb, var(--primary) 11%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--glass-border));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 32%);
+}
+.favorite-action.active .favorite-glyph {
+  fill: currentColor;
+  stroke: color-mix(in srgb, var(--primary) 76%, white);
+  filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--primary) 26%, transparent));
+  transform: scale(1.04);
+}
 #navFavCount {
-  font-size: 0.7rem;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
   padding: 0 5px;
-  min-width: 18px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-primary) 42%, transparent);
+  border: 1px solid color-mix(in srgb, white 30%, var(--glass-border));
+  border-radius: 99px;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 36%) inset;
+  font-size: .66rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1;
   text-align: center;
-  margin-left: 2px;
+  transition: color .3s cubic-bezier(.25,.1,.25,1), background .3s cubic-bezier(.25,.1,.25,1);
+}
+.favorite-action.active #navFavCount { color: var(--primary); background: color-mix(in srgb, var(--primary) 11%, var(--glass-bg)); }
+
+.nav-account-action {
+  min-height: 38px;
+  padding: 0 13px;
+  background: linear-gradient(145deg, rgb(255 255 255 / 15%), transparent 52%), color-mix(in srgb, var(--glass-bg) 66%, transparent);
+  border: 1px solid color-mix(in srgb, white 18%, var(--glass-border));
+  border-radius: 13px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+.nav-account-action:hover {
+  background: linear-gradient(145deg, rgb(255 255 255 / 24%), transparent 52%), color-mix(in srgb, var(--primary) 7%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--glass-border));
+  box-shadow: 0 6px 17px color-mix(in srgb, var(--primary) 7%, transparent), inset 0 1px 0 rgb(255 255 255 / 30%);
+  transform: translateY(-1px) scale(1.02);
+}
+.nav-account-action:active { transform: scale(.98); }
+.nav-account-action:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary) 52%, transparent); outline-offset: 2px; }
+
+:global([data-theme="dark"]) .top-navbar {
+  background: linear-gradient(145deg, rgb(255 255 255 / 3.5%), transparent 38%), var(--glass-bg);
+  border-color: rgb(255 255 255 / 7.5%);
+  box-shadow: 0 14px 40px rgb(0 0 0 / 18%), inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+:global([data-theme="dark"]) .nav-control-cluster {
+  background: linear-gradient(145deg, rgb(255 255 255 / 4.5%), transparent 52%), rgb(255 255 255 / 1.8%);
+  border-color: rgb(255 255 255 / 7%);
+  box-shadow: 0 7px 20px rgb(0 0 0 / 13%), inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+:global([data-theme="dark"]) .nav-account-action,
+:global([data-theme="dark"]) #navSearchInput {
+  background: linear-gradient(145deg, rgb(255 255 255 / 4.5%), transparent 52%), rgb(255 255 255 / 2.5%);
+  border-color: rgb(255 255 255 / 6.5%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+:global([data-theme="dark"]) .nav-link.router-link-active {
+  background: linear-gradient(145deg, rgb(255 255 255 / 5.5%), transparent 52%), color-mix(in srgb, var(--primary) 7%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 20%, rgb(255 255 255 / 4%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
 }
 
 /* ===== 用户头像 ===== */
@@ -432,7 +741,7 @@ watch(() => ui.sidebarCollapsed, () => {
   padding: 8px 0;
   box-shadow: var(--card-hover-shadow);
   z-index: 100;
-  animation: dropdownIn 0.2s ease;
+  animation: dropdownIn 0.3s cubic-bezier(.25,.1,.25,1);
 }
 @keyframes dropdownIn {
   from { opacity: 0; transform: translateY(-8px) scale(0.97); }
@@ -455,7 +764,7 @@ watch(() => ui.sidebarCollapsed, () => {
   font-size: 0.85rem;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.3s cubic-bezier(.25,.1,.25,1), color 0.3s cubic-bezier(.25,.1,.25,1);
   font-family: inherit;
 }
 .dropdown-item-btn:hover {
@@ -479,11 +788,52 @@ watch(() => ui.sidebarCollapsed, () => {
   }
 }
 @media (max-width: 640px) {
-  .nav-right {
+  .top-navbar.visible {
+    padding: 10px;
+    gap: 10px;
+  }
+  .nav-left {
+    width: 100%;
+    min-width: 0;
     gap: 8px;
   }
+  .nav-logo-wrapper {
+    flex: 0 0 auto;
+  }
+  .nav-logo-img {
+    width: 24px;
+    height: 24px;
+  }
+  .nav-logo-text {
+    font-size: .96rem;
+  }
+  .nav-links {
+    min-width: 0;
+    margin-left: auto;
+    gap: 2px;
+  }
+  .nav-link {
+    padding: 7px 8px;
+    font-size: .76rem;
+    white-space: nowrap;
+  }
+  .nav-right {
+    width: 100%;
+    min-width: 0;
+    gap: 6px;
+  }
   .nav-search-wrapper {
-    width: 140px;
+    width: auto;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .nav-icon {
+    flex: 0 0 auto;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px 9px;
+    justify-content: center;
+    white-space: nowrap;
   }
 }
 </style>
