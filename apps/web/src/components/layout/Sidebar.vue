@@ -13,10 +13,14 @@
     </button>
   </Teleport>
 
-  <aside :class="['sidebar', { collapsed: ui.sidebarCollapsed }]" id="sidebar" role="navigation">
+  <aside
+    :class="['sidebar', { collapsed: ui.sidebarCollapsed, 'desktop-runtime': isDesktop, 'compact-mode': compactMode }]"
+    id="sidebar"
+    role="navigation"
+  >
     <!-- 桌面端按钮：始终在侧边栏内，用 position:fixed 突破折叠裁剪 -->
     <button
-      v-if="!ui.isMobile && !ui.sidebarCollapsed"
+      v-if="!ui.isMobile"
       :class="['sidebar-toggle', { 'fixed-mode': ui.sidebarCollapsed }]"
       :style="desktopToggleStyle"
       @click="toggleSidebar"
@@ -26,128 +30,128 @@
         @error="onToggleIconError" />
     </button>
 
-    <!-- Logo -->
-    <div class="sidebar-logo">
-      <img src="/icon/icon_256x256.ico" alt="FlexiKit Logo" style="width:48px;height:48px;border-radius:10px;">
-      <div class="logo-text">
-        <h1>FlexiKit</h1>
-        <div class="version">灵巧箱 v6.0</div>
+    <div v-if="!isDesktop || !ui.sidebarCollapsed" class="sidebar-expanded-content">
+      <!-- Logo -->
+      <div class="sidebar-logo">
+        <img src="/icon/icon_256x256.ico" alt="FlexiKit Logo" style="width:48px;height:48px;border-radius:10px;">
+        <div class="logo-text">
+          <h1>FlexiKit</h1>
+          <div class="version">灵巧箱 v6.0</div>
+        </div>
       </div>
-    </div>
 
-    <!-- 搜索框 -->
-    <div class="search-wrap">
-      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-      </svg>
-      <input type="search" :value="searchLocal" @input="onSearchInput" placeholder="搜索工具名称、描述或标签…" autocomplete="off" />
-    </div>
+      <nav v-if="isDesktop" class="desktop-primary-nav" aria-label="桌面端主导航">
+        <RouterLink to="/app" class="desktop-nav-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+          <span>全部工具</span>
+        </RouterLink>
+        <RouterLink to="/discover" class="desktop-nav-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9 4.9-2.1Z"/></svg>
+          <span>发现工具</span>
+        </RouterLink>
+      </nav>
 
-    <!-- 工具栏 -->
-    <div class="toolbar-row">
-      <button @click="$emit('open-add-modal')" aria-label="添加工具">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>添加
-      </button>
-      <span class="sep"></span>
-      <button v-show="!ui.selectMode" @click="enterSelect" aria-label="多选整理">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>整理
-      </button>
-      <button :class="{ active: ui.showOnlyFav }" @click="toggleFav">⭐ 收藏</button>
-      <span class="batch-count" :style="{ display: ui.selectMode ? 'inline-flex' : 'none' }">
-        已选 {{ ui.selectedSet.size }} 项
-      </span>
-      <button class="danger" v-show="ui.selectMode" @click="$emit('batch-delete')" aria-label="删除选中">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>删除选中
-      </button>
-      <button v-show="ui.selectMode" @click="exitSelect" aria-label="退出多选">退出多选</button>
-    </div>
+      <template v-if="!compactMode">
+        <!-- 搜索框 -->
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="search" :value="searchLocal" @input="onSearchInput" placeholder="搜索工具名称、描述或标签…" autocomplete="off" />
+        </div>
 
-    <!-- 工具类型筛选 -->
-    <div v-if="ui.showToolTypeFilter" class="tool-type-filter">
-      <button :class="{ active: ui.toolTypeFilter === 'all' }" @click="ui.toolTypeFilter = 'all'">
-        <span>全部</span>
-      </button>
-      <span class="sep"></span>
-      <button :class="{ active: ui.toolTypeFilter === 'web' }" @click="ui.toolTypeFilter = 'web'">
-        <span>网页</span>
-      </button>
-      <span class="sep"></span>
-      <button :class="{ active: ui.toolTypeFilter === 'local' }" @click="ui.toolTypeFilter = 'local'">
-        <span>本地</span>
-      </button>
-    </div>
+        <!-- 工具栏 -->
+        <div class="toolbar-row">
+          <button @click="$emit('open-add-modal')" aria-label="添加工具">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>添加
+          </button>
+          <span class="sep"></span>
+          <button v-show="!ui.selectMode" @click="enterSelect" aria-label="多选整理">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>整理
+          </button>
+          <button :class="{ active: ui.showOnlyFav }" @click="toggleFav">⭐ 收藏</button>
+          <span class="batch-count" :style="{ display: ui.selectMode ? 'inline-flex' : 'none' }">
+            已选 {{ ui.selectedSet.size }} 项
+          </span>
+          <button class="danger" v-show="ui.selectMode" @click="$emit('batch-delete')" aria-label="删除选中">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>删除选中
+          </button>
+          <button v-show="ui.selectMode" @click="exitSelect" aria-label="退出多选">退出多选</button>
+        </div>
 
-    <!-- 分类导航：桌面端显示列表 -->
-    <div v-if="!ui.isMobile" class="cat-nav" ref="catNavRef">
-      <button
-        v-for="(cat, idx) in displayCategories"
-        :key="cat"
-        :data-cat="cat"
-        :class="['cat-item', { active: cat === ui.activeCategory }]"
-        @click="setCategory(cat)"
-        @dblclick="cat !== '全部' && ui.openRenameModal(cat)"
-      >
-        <span class="cat-dot" :style="{ background: cat === ui.activeCategory ? 'var(--accent)' : catColors[idx % catColors.length] }"></span>
-        <span>{{ cat }}</span>
-        <span class="cat-count">{{ tools.categoryCounts[cat] || 0 }}</span>
-      </button>
-    </div>
+        <!-- 工具类型筛选 -->
+        <div v-if="ui.showToolTypeFilter" class="tool-type-filter">
+          <button :class="{ active: ui.toolTypeFilter === 'all' }" @click="ui.toolTypeFilter = 'all'"><span>全部</span></button>
+          <span class="sep"></span>
+          <button :class="{ active: ui.toolTypeFilter === 'web' }" @click="ui.toolTypeFilter = 'web'"><span>网页</span></button>
+          <span class="sep"></span>
+          <button :class="{ active: ui.toolTypeFilter === 'local' }" @click="ui.toolTypeFilter = 'local'"><span>本地</span></button>
+        </div>
 
-    <!-- 分类选择：移动端显示自定义下拉框 -->
-    <div v-else class="mobile-cat-select" ref="mobileCatSelectRef">
-      <div 
-        class="custom-select-trigger" 
-        @click="toggleMobileCatDropdown"
-        :class="{ active: mobileCatDropdownOpen }"
-      >
-        <span class="select-label">{{ ui.activeCategory }}</span>
-        <span class="select-count">{{ tools.categoryCounts[ui.activeCategory] || 0 }}</span>
-        <svg class="select-arrow" :class="{ open: mobileCatDropdownOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-      </div>
-      
-      <!-- 使用 Teleport 传送到 body，避免被父容器裁剪 -->
-      <Teleport to="body">
-        <transition name="dropdown">
-          <div 
-            v-show="mobileCatDropdownOpen" 
-            class="custom-select-dropdown"
-            :style="dropdownStyle"
+        <!-- 分类导航：桌面端显示列表 -->
+        <div v-if="!ui.isMobile" class="cat-nav" ref="catNavRef">
+          <button
+            v-for="(cat, idx) in displayCategories"
+            :key="cat"
+            :data-cat="cat"
+            :class="['cat-item', { active: cat === ui.activeCategory }]"
+            @click="setCategory(cat)"
+            @dblclick="cat !== '全部' && ui.openRenameModal(cat)"
           >
-            <div 
-              v-for="(cat, idx) in displayCategories" 
-              :key="cat"
-              :class="['select-option', { active: cat === ui.activeCategory }]"
-              @click="selectMobileCat(cat)"
-            >
-              <span class="option-dot" :style="{ background: cat === ui.activeCategory ? 'var(--accent)' : catColors[idx % catColors.length] }"></span>
-              <span class="option-name">{{ cat }}</span>
-              <span class="option-count">{{ tools.categoryCounts[cat] || 0 }}</span>
-            </div>
+            <span class="cat-dot" :style="{ background: cat === ui.activeCategory ? 'var(--accent)' : catColors[idx % catColors.length] }"></span>
+            <span>{{ cat }}</span>
+            <span class="cat-count">{{ tools.categoryCounts[cat] || 0 }}</span>
+          </button>
+        </div>
+
+        <!-- 分类选择：移动端显示自定义下拉框 -->
+        <div v-else class="mobile-cat-select" ref="mobileCatSelectRef">
+          <div class="custom-select-trigger" @click="toggleMobileCatDropdown" :class="{ active: mobileCatDropdownOpen }">
+            <span class="select-label">{{ ui.activeCategory }}</span>
+            <span class="select-count">{{ tools.categoryCounts[ui.activeCategory] || 0 }}</span>
+            <svg class="select-arrow" :class="{ open: mobileCatDropdownOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
           </div>
-        </transition>
-      </Teleport>
+          <Teleport to="body">
+            <transition name="dropdown">
+              <div v-show="mobileCatDropdownOpen" class="custom-select-dropdown" :style="dropdownStyle">
+                <div
+                  v-for="(cat, idx) in displayCategories"
+                  :key="cat"
+                  :class="['select-option', { active: cat === ui.activeCategory }]"
+                  @click="selectMobileCat(cat)"
+                >
+                  <span class="option-dot" :style="{ background: cat === ui.activeCategory ? 'var(--accent)' : catColors[idx % catColors.length] }"></span>
+                  <span class="option-name">{{ cat }}</span>
+                  <span class="option-count">{{ tools.categoryCounts[cat] || 0 }}</span>
+                </div>
+              </div>
+            </transition>
+          </Teleport>
+        </div>
+
+        <!-- 导入导出 -->
+        <div class="import-export-bar">
+          <button class="theme-btn" @click="$emit('export-data')" aria-label="导出数据">📤 导出</button>
+          <button class="theme-btn" @click="$emit('import-data')" aria-label="导入数据">📥 导入</button>
+        </div>
+      </template>
+
+      <!-- 底部固定操作区 -->
+      <div class="sidebar-footer">
+        <div class="theme-toggle-wrap">
+          <button :class="['theme-btn', { active: ui.theme === 'auto' }]" @click="ui.setTheme('auto')">跟随系统</button>
+          <button :class="['theme-btn', { active: ui.theme === 'light' }]" @click="ui.setTheme('light')">亮色</button>
+          <button :class="['theme-btn', { active: ui.theme === 'dark' }]" @click="ui.setTheme('dark')">暗黑</button>
+        </div>
+        <div v-if="!compactMode" class="sidebar-stats">
+          <span>总计 {{ tools.allTools.length }} 项</span>
+          <span>显示 {{ tools.getVisibleTools().length }} 项</span>
+        </div>
+      </div>
     </div>
 
-    <!-- 导入导出 -->
-    <div class="import-export-bar">
-      <button class="theme-btn" @click="$emit('export-data')" aria-label="导出数据">📤 导出</button>
-      <button class="theme-btn" @click="$emit('import-data')" aria-label="导入数据">📥 导入</button>
-    </div>
-
-    <!-- 底部 -->
-    <div class="sidebar-footer">
-      <div class="theme-toggle-wrap">
-        <button :class="['theme-btn', { active: ui.theme === 'auto' }]" @click="ui.setTheme('auto')">跟随系统</button>
-        <button :class="['theme-btn', { active: ui.theme === 'light' }]" @click="ui.setTheme('light')">亮色</button>
-        <button :class="['theme-btn', { active: ui.theme === 'dark' }]" @click="ui.setTheme('dark')">暗黑</button>
-      </div>
-      <div class="sidebar-stats">
-        <span>总计 {{ tools.allTools.length }} 项</span>
-        <span>显示 {{ tools.getVisibleTools().length }} 项</span>
-      </div>
-    </div>
   </aside>
 </template>
 
@@ -157,9 +161,18 @@ import type { CSSProperties } from 'vue'
 import Sortable from 'sortablejs'
 import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
+import { isDesktopRuntime } from '@/api/runtime'
+
+const props = withDefaults(defineProps<{
+  compactMode?: boolean
+}>(), {
+  compactMode: false,
+})
 
 const tools = useToolsStore()
 const ui = useUiStore()
+const isDesktop = isDesktopRuntime()
+const compactMode = computed(() => props.compactMode)
 
 const catNavRef = ref<HTMLElement | null>(null)
 const mobileCatSelectRef = ref<HTMLElement | null>(null)
@@ -238,10 +251,9 @@ function onToggleIconError(e: Event) {
 
 // ========== 桌面端按钮样式 ==========
 const desktopToggleStyle = computed<CSSProperties>(() => {
-  if (ui.sidebarCollapsed) {
-    const left = window.innerWidth >= 1400 ? '16px' : '8px'
+  if (isDesktop && ui.sidebarCollapsed) {
     return {
-      position: 'fixed', top: '32px', left, right: 'auto', zIndex: '100'
+      position: 'absolute', top: '10px', right: '10px', left: 'auto', zIndex: '20'
     } as CSSProperties
   }
   return {

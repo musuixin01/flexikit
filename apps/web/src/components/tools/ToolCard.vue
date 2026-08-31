@@ -222,7 +222,9 @@ import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
 import { toolsApi } from '@/api/tools'
+import { statsApi } from '@/api/stats'
 import type { Tool, WebsitePreview } from '@/types/tool'
+import { recordToolUsage } from '@/utils/toolUsage'
 import ToolIcon from './ToolIcon.vue'
 
 const props = defineProps<{
@@ -457,18 +459,21 @@ async function onCardClick(e: MouseEvent) {
     emit('check-click', toolKey.value)
     return
   }
+  if (props.tool.id) void statsApi.recordClick(props.tool.id).catch(() => {})
   if (isLocal.value) {
     e.preventDefault()
     try {
       const toolId = props.tool.id || 0
       const fallbackPath = props.tool.localPath || undefined
       await toolsApi.openTool(toolId, fallbackPath)
+      recordToolUsage(props.tool)
       ui.showToast(`已打开: ${props.tool.name}`)
     } catch (err: any) {
       ui.showToast(`打开失败: ${err.response?.data?.message || err.message}`)
     }
     return
   }
+  recordToolUsage(props.tool)
 }
 
 function onEdit() {

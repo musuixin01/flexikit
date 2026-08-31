@@ -15,7 +15,13 @@ async function bootstrap() {
   const nodeEnv = configService.get('NODE_ENV') || 'development';
   const corsOrigin = nodeEnv === 'production'
     ? (configService.get('CORS_ORIGIN') || 'https://flexikit.app').split(',')
-    : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+    : [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:3000',
+        'http://tauri.localhost',
+        'tauri://localhost',
+      ];
   
   app.enableCors({
     origin: corsOrigin,
@@ -25,7 +31,7 @@ async function bootstrap() {
     maxAge: 86400,
   });
   
-  const port = configService.get('PORT') || 3000;
+  const port = configService.get('PORT') || 3001;
   await app.listen(port);
   logger.log(`🚀 Server running on http://localhost:${port}`);
   logger.log(`Environment: ${nodeEnv}`);

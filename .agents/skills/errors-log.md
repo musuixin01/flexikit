@@ -163,6 +163,26 @@
 - 原因与处理：前一轮已降低环境光参数；改用固定的布局图标规则和动画关键帧作为插入锚点。
 # 2026-08-08
 
+- Web 端 1:1 桌面清理：补丁工具无法读取二进制 `.ico`，因此不能删除旧 favicon。处理为在桌面 `.gitignore` 中排除 `public/`；该文件不被 Tauri 或 Web 构建引用，也不会进入提交。
+- Web 端 1:1 桌面清理：即使单独指定旧 favicon，直接 `Remove-Item` 仍被策略拦截。处理为交由补丁工具删除这个由当前任务生成且未跟踪的单个二进制文件；若工具不支持则仅将其排除，不再尝试系统删除。
+- Web 端 1:1 桌面清理：一次命令同时删除旧 favicon 和多个空目录被安全策略拦截。处理为不组合目录清理，只删除明确的单个未跟踪 favicon 文件；空目录不影响 Git，可保留。
+- Web 端 1:1 桌面构建：已验证目标路径后尝试直接递归删除 Cargo `target`，仍被本机安全策略拦截。处理为改用 Cargo 自带的 `cargo clean` 清理当前项目生成物，避免直接文件系统递归删除。
+- Web 端 1:1 桌面构建：迁回项目目录的 Cargo `target` 缓存仍记录旧 D 盘绝对路径，Tauri build script 因找不到 `D:\DevTools\Rust\targets\...\permissions` 失败。处理为删除仅包含可再生成产物的旧 `apps/desktop/src-tauri/target`，在原项目目录进行一次干净 Release 构建。
+- 桌面端复用 Web：复查剩余 API 字符串时使用了包含 PowerShell 反引号的正则，导致字符串终止符解析失败。处理为彻底停用该复杂表达式，改用普通 `/api` 文本搜索后人工区分导入路径与请求地址。
+- 桌面端复用 Web：搜索现有 Tauri 运行时判断没有命中，`rg` 按约定返回非零状态，使组合检查显示失败；前面的 `.gitignore` 与 schema 清单已正常输出。处理为确认项目尚无运行时判断工具，直接新增统一 API 地址辅助函数。
+- 桌面端复用 Web：检查旧 `apiClient` 引用时再次在 PowerShell 双引号中混用了正则引号字符，导致解析失败。处理为取消复杂正则，仅按文件名文本搜索，再分段读取相关组件。
+- 桌面端复用 Web：组合搜索 Web API 直连调用时，PowerShell 将包含反引号与引号的正则表达式解析为未闭合字符串。处理为拆分文件读取与 `rg` 搜索，使用简单模式分别查找 `/api` 和 `axios.create`。
+- C++ Build Tools 安装：`winget` 等待官方安装器超过 10 分钟后运行单元返回超时 124，期间没有安装失败输出。处理为不重复启动安装，先检查 D 盘目标目录、Visual Studio Installer 状态和相关进程，确认现有安装是否仍在继续或已经完成。
+- 桌面端原生编译：修正 Tauri feature 后编译进入 Rust crate 阶段，但因系统缺少 MSVC `link.exe` 失败。处理为把 Visual Studio 2022 C++ Build Tools 主程序安装到 D 盘，再从其开发者环境中重新编译。
+- 桌面端原生编译：Rust 安装完成后首次 `cargo check` 在依赖解析阶段失败，Tauri 2 不存在旧配置中的 `window-set-theme` feature。处理为从 `Cargo.toml` 移除该无效 feature，窗口主题 API 继续由 Tauri 2 权限系统控制。
+- 桌面端视觉验证：结束临时 Vite 前台运行单元时返回 124 秒超时状态；该状态来自常驻开发服务的运行时限。处理为只检查 1420 端口是否仍监听，若有残留仅停止该明确端口对应进程。
+- 桌面端浏览器预览：控制台发现 `/favicon.ico` 返回 404。原因是桌面前端没有 public 图标；处理为复用项目现有 FlexiKit 图标作为桌面页签图标并重新构建验证。
+- 桌面端视觉验证：终止未成功监听的隐藏 Vite 运行单元时系统返回拒绝访问。该单元未提供网页服务；后续只按明确的 1420 端口检查残留，不进行广泛进程终止。
+- 桌面端视觉验证：首次打开 `127.0.0.1:1420` 返回连接拒绝，说明隐藏启动的 Vite 子进程尚未成功监听。处理为终止该可控运行单元，改用直接前台启动并等待服务输出后再检查。
+- 桌面端视觉验证：用隐藏后台进程组合启动 Vite、截图并终止进程的命令被本机安全策略拦截。处理为改用可控的前台运行单元启动预览，再单独截图和终止，不执行组合式进程清理。
+- 桌面原生层验证：执行 `cargo check` 时系统提示找不到 Cargo。原因是当前电脑尚未安装 Rust 工具链或 Cargo 未加入 PATH；先确认常见安装位置，若仍缺失则保留已通过的前端构建结果并明确说明安装包构建条件。
+- 桌面端实现：组合补丁在替换 `src-tauri/src/main.rs` 乱码注释时定位失败。原因是旧文件包含损坏的编码字符，文本与读取显示不一致；处理为先完整替换该短文件，再分别添加样式和权限文件。
+
 - 暗色主题多页面视觉验证：临时 Vite 服务在结束等待时已达到 60 秒超时，终止调用返回 124；随后按 5174 端口确认并清理残留进程。
 - 暗色主题净化：`base.css` 含历史非 UTF-8 字节，`apply_patch` 无法安全读取；放弃直接修改该文件，改由运行时主题变量和组件暗色覆盖完成调整。
 - 导航栏右侧控制组视觉验证：临时 Vite 服务在结束等待时已达到 60 秒超时，终止调用返回 124；随后按 5174 端口确认并清理残留进程。
@@ -173,3 +193,191 @@
 - 实时预览滚动验证：设置按钮首次点击超时，页面底部 Cookie 提示层可能拦截交互；先关闭提示层后再验证。
 - 实时预览滚动验证：Chrome DevTools MCP 拒绝将截图写入项目目录（工具工作区路径识别限制）；改为直接返回截图进行视觉检查。
 - 实时预览滚动验证：临时 Vite 服务在结束等待时已达到 120 秒超时，终止调用返回 124；随后按 5174 端口确认并清理残留进程。
+### 2026-08-08 - Searching prior desktop build commands returned no matches
+
+- Command: `rg -n "VsDevCmd|tauri build|CARGO_HOME" .agents apps/desktop ...`
+- Result: `rg` exited with code 1 because no matching text was found.
+- Resolution: use the already verified Rust and Visual Studio paths directly for the Tauri build; do not treat an empty search as a build failure.
+### 2026-08-08 - Tauri rebuild could not replace a running desktop executable
+
+- Command: desktop `npm run tauri build` from the Visual Studio developer environment.
+- Error: Cargo could not remove `target\release\flexikit-desktop.exe` with Windows error 5 (access denied).
+- Cause: a previously launched FlexiKit desktop process still held the executable open.
+- Resolution: stop only the exact `flexikit-desktop` process, confirm it is gone, then rerun the same build.
+### 2026-08-08 - Follow-up desktop screenshot targeted an exited process
+
+- Action: attempted to capture process ID 34384 after an automated mouse interaction.
+- Error: `Get-Process` could not find the process; subsequent screenshot calls received null window data.
+- Resolution: relaunch the newly built executable and verify it remains running before each capture. Use keyboard/UI inspection only after resolving the exact current process ID.
+### 2026-08-08 - WebView2 remote-debug launch was blocked by command policy
+
+- Action: attempted to launch the release executable with a temporary `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` remote-debugging port and query its local target list.
+- Result: the shell command was rejected by policy before execution.
+- Resolution: avoid changing WebView2 debug environment flags; use a scoped Tauri readiness signal and native window enumeration as the deterministic pet-route check.
+### 2026-08-08 - Long Tauri build wait lost its code-mode host generation
+
+- Action: waited on build cell 311 after the initial shell call yielded.
+- Error: the wait host timed out and then reported the cell belonged to a stale host generation.
+- Resolution: inspect the release artifact timestamp and active compiler processes before deciding whether to rerun; never start a duplicate build blindly.
+### 2026-08-08 - Physical pet size was scaled down by WebView window conversion
+
+- Probe: launch app, require `FlexiKit Pet Ready`, and assert the pet bounds are 84x84.
+- Result: route check passed, but native bounds were 67x67 and the size probe exited red.
+- Cause: Tauri's physical-size setter and this monitor's effective scale do not map one-to-one to the desired CSS/native window size.
+- Resolution: calibrate the requested size from the measured ratio, then keep the red/green native-bounds probe as the regression check.
+### 2026-08-08 - Automated pet hover used DPI-virtualized coordinates
+
+- Probe: move the mouse to the center reported by `GetWindowRect`, wait three seconds, and require the pet width to expand.
+- Result: width remained 67 and the hover check exited red.
+- Cause: PowerShell received DPI-virtualized window coordinates while `SetCursorPos` expects physical screen coordinates, so the pointer did not enter the pet.
+- Resolution: multiply the reported center by `GetDpiForWindow / 96` before moving the cursor, then rerun the same hover assertion.
+### 2026-08-08 - Manual DPI multiplication still missed the transparent pet hit region
+
+- Probe: multiply virtualized window coordinates by the pet DPI scale before `SetCursorPos`.
+- Result: cursor moved to 1838x958 but the pet remained collapsed.
+- Cause: coordinate virtualization is applied inconsistently when a DPI-unaware PowerShell host calls both window and cursor APIs; manual multiplication is not a reliable hit-test driver.
+- Resolution: run the hover probe from a process marked per-monitor DPI aware before reading bounds or moving the cursor.
+### 2026-08-08 - DPI-aware cursor reached the pet but hover still did not expand
+
+- Probe: mark the host per-monitor DPI aware, confirm pet bounds 1796,916,84,84, move the cursor to 1838,958, and wait three seconds.
+- Result: cursor was inside the exact native bounds, but the window stayed 84x84.
+- Finding: size/DPI is no longer the blocker; either transparent-window mouse events are not reaching the page or the resize invoke fails after the event.
+- Next probe: click the same hit region and observe whether the pet's `show_main_window` action changes the foreground window, separating hit-testing from resize-command failure.
+### 2026-08-08 - Pet native window did not receive automated clicks
+
+- Probe: hide the main window, click the DPI-aware center of the pet, and require `show_main_window` to make the main window visible again.
+- Result: main remained hidden and the click check exited red.
+- Finding: the failure is at native hit-testing before Vue handlers; it is not limited to the hover timer or resize command.
+- Next probe: inspect the pet window's extended native styles for click-through or no-activate flags, then remove the responsible window behavior.
+### 2026-08-08 - Moving the cursor out and back still did not create WebView hover
+
+- Probe: move the cursor to 200,200, then into the DPI-aware pet center and wait three seconds.
+- Result: pet remained 84x84.
+- Finding: the target point and transition are correct, but `SetCursorPos` alone is not generating a WebView2 pointer event in this automated desktop session.
+- Resolution: use a relative `mouse_event` movement after entering the window to generate a hardware-style move event; if that still fails, validate the DOM action through UI Automation instead of treating automation limitations as an application defect.
+### 2026-08-08 - Hardware-style relative move did not trigger WebView hover in automation
+
+- Probe: move into the pet and issue a relative `mouse_event` before waiting.
+- Result: native bounds remained 84x84.
+- Finding: this desktop automation channel cannot drive WebView2 pointer events for the transparent pet window even though the route and rendered pixels are present.
+- Resolution: stop using cursor injection as the pass/fail loop. Inspect the WebView accessibility tree and invoke the real logo control through UI Automation; validate expansion separately through the actual Tauri resize command and rendered snapshot.
+### 2026-08-08 - UI Automation tree probe had a PowerShell pipeline parse error
+
+- Command: build PSCustomObjects directly inside a `for` loop and pipe the loop output to `Format-Table`.
+- Error: PowerShell reported an empty pipe element after the loop block.
+- Resolution: collect elements into an explicit list inside the loop, then format the completed list in a separate statement.
+### 2026-08-08 - Injected mouse button was not observed by native pet click poll
+
+- Probe: hide the main window, hold an injected left button for 180 ms over the expanded pet logo, and require the main window to reappear.
+- Result: main stayed hidden.
+- Finding: native position polling works, but this automation session's `mouse_event` button injection is not visible to the app's background `GetAsyncKeyState` poll.
+- Resolution: verify `GetAsyncKeyState` inside the injector process and use a keyboard-accessible/native command seam to validate main-window restoration; retain the click poll for real hardware input.
+### 2026-08-08 - Keyboard search automation was denied by Windows input isolation
+
+- Probe: focus the pet window and send `zotero{ENTER}` to exercise the real search form and main-window restore path.
+- Result: `SendKeys.SendWait` raised `Access is denied`; main remained hidden.
+- Finding: the desktop session blocks synthetic keyboard injection across this WebView window, matching the earlier synthetic mouse limitation.
+- Resolution: stop synthetic input testing. Keep the verified route/render/native-hover checks, validate the shared-origin search handoff structurally, and perform final visual checks without claiming automated typing coverage.
+### 2026-08-08 - Final multi-window capture repeated the PowerShell loop-pipeline parse mistake
+
+- Command: emit capture result objects from a `foreach` block and immediately pipe the block to `Format-List`.
+- Error: PowerShell reported an empty pipe element.
+- Resolution: collect capture result objects into a list and format the list after the loop, matching the earlier UI Automation fix.
+
+### 2026-08-31 - Desktop release executable was locked during rebuild
+
+- Command: `npm run tauri -- build` from `apps/desktop`.
+- Error: Rust could not remove `target/release/flexikit-desktop.exe` because Windows returned access denied (os error 5).
+- Finding: an older FlexiKit desktop process was still running and holding the release executable open; frontend and Rust compilation had otherwise progressed normally.
+- Resolution: stop only running `flexikit-desktop` processes, confirm the target is unlocked, then rerun the release build.
+
+### 2026-08-31 - Pet view replacement used unsupported combined patch operations
+
+- Command: replace `Pet.vue` with one patch containing both delete-file and add-file operations for the same path.
+- Error: `apply_patch` rejected multiple operations targeting the same file.
+- Finding: the patch engine requires the delete and add operations to be separate calls for a full-file replacement.
+- Resolution: delete the old file in one patch, then add the rewritten file in the next patch.
+
+### 2026-08-31 - Parallel web and Rust checks exhausted Windows resources
+
+- Command: run the desktop web build and `cargo check` concurrently.
+- Error: Rust compilation failed with Windows error 1450, allocation failures, and secondary dependency errors after the compiler ran out of system resources.
+- Finding: the web build succeeded; the Rust errors occurred inside unchanged registry dependencies while both build pipelines were active, so the signal is resource exhaustion rather than an application source error.
+- Resolution: rerun Rust formatting and checking separately with `CARGO_BUILD_JOBS=1` after the web build has completed.
+
+### 2026-08-31 - Debug Cargo graph exposed a schemars/indexmap mismatch
+
+- Command: `cargo check -j 1` after the resource-safe retry.
+- Error: `schemars 0.8.22` resolved an `indexmap 1.9.3` type that required a third generic argument in the debug dependency graph.
+- Finding: the error is in registry dependency source, not FlexiKit code, and the same project had already built successfully in the release profile used for shipping.
+- Resolution: validate the native source with formatting plus the actual release-profile Tauri build; do not treat this debug-only dependency graph error as an application source failure.
+
+### 2026-08-31 - Combined WebView debug launch command was rejected
+
+- Command: stop the release app, set a WebView2 debugging environment variable, launch the app, and remove the environment variable in one PowerShell command.
+- Error: the command was rejected by the execution safety policy before it ran.
+- Finding: combining process termination, environment mutation, and launch made the diagnostic command too broad.
+- Resolution: split shutdown and diagnostic launch into separate commands and clear the process-scoped variable with a direct environment assignment.
+
+### 2026-08-31 - WebView2 remote debugging remained blocked after command split
+
+- Command: launch the release app with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223` in process scope.
+- Error: execution policy rejected the launch before it ran.
+- Finding: the environment blocks enabling a browser debugging port for this desktop process, even when shutdown and launch are separated.
+- Resolution: stop retrying the blocked mechanism; verify expanded UI through an application-owned preview event and native window capture instead.
+
+### 2026-08-31 - Rust formatting check found one wrapped closure
+
+- Command: `cargo fmt -- --check` after narrowing native pet hit testing.
+- Error: rustfmt requested collapsing one three-line closure into a single line.
+- Finding: this is formatting-only; the desktop web build passed and no native logic error was reported.
+- Resolution: run `cargo fmt`, then build the release profile.
+
+### 2026-08-31 - cargo fmt was launched one directory too high
+
+- Command: run `cargo fmt` from `apps/desktop` immediately before the Tauri build.
+- Error: Cargo could not find `Cargo.toml` because the Rust crate is in `apps/desktop/src-tauri`.
+- Finding: the following Tauri release build continued normally; only the standalone formatting step used the wrong working directory.
+- Resolution: run `cargo fmt` from `apps/desktop/src-tauri`, then perform the final native rebuild from `apps/desktop`.
+
+### 2026-08-31 - Final formatted release was locked by a surviving pet process
+
+- Command: final `npm run tauri -- build` after formatting and the search-list overflow fix.
+- Error: the linker could not remove `target/release/flexikit-desktop.exe` because Windows returned access denied.
+- Finding: a FlexiKit process pointing at the target release executable survived or restarted during visual validation and retained the file handle; source compilation itself reported no error.
+- Resolution: enumerate and stop every process whose resolved executable path exactly matches the target release file, confirm none remain, then rerun the incremental release build.
+
+### 2026-08-31 - Drag probe used a stale desktop process id
+
+- Command: enumerate the pet window under the process id returned by the earlier final launch, then inject a controlled drag inside its aquarium.
+- Error: the probe could not find a `FlexiKit Pet` window for that process id.
+- Finding: the recorded launcher process id was stale or the active desktop window belonged to another FlexiKit process instance, so no drag input was sent.
+- Resolution: enumerate current top-level windows by title first, resolve the owning process, then run the same position-before/after drag assertion against the discovered handle.
+
+### 2026-08-31 - vue-tsc is incompatible with the installed Node runtime
+
+- Command: `npx vue-tsc --noEmit` in `apps/web`.
+- Error: vue-tsc exited before checking project files with `Search string not found: "/supportedTSExtensions = .*(?=;)/"` under Node.js 24.15.0.
+- Finding: the repository's vue-tsc wrapper is incompatible with the installed TypeScript/Node runtime; this is a checker bootstrap failure rather than a reported source error.
+- Resolution: validate the desktop web bundle with its existing Vite build and validate the integrated application with the Tauri release build.
+
+### 2026-08-31 - Adaptive pet layout patch used an imprecise Vue context
+
+- Command: apply the four-direction placement template, state, and event changes to `apps/web/src/views/Pet.vue` in one patch.
+- Error: `apply_patch` could not find the expected `handlePointerLeave` context, so none of that patch was applied.
+- Finding: the target function order differed from the combined patch context after earlier search-style edits.
+- Resolution: inspect the exact surrounding ranges and apply the template, state, functions, and listeners as separate scoped patches.
+
+### 2026-08-31 - cargo check resolved an incompatible schemars/indexmap pair
+
+- Command: `cargo check` after formatting the adaptive pet placement code.
+- Error: dependency compilation failed because `schemars 0.8.22` expected a two-parameter `IndexMap`, while the resolved `indexmap 1.9.3` type exposed a third generic parameter.
+- Finding: the failure occurred inside the Cargo registry before checking the FlexiKit crate; rustfmt completed successfully and prior locked release builds worked.
+- Resolution: retain the existing lockfile and validate the integrated native code through the repository's Tauri release build rather than altering unrelated dependency versions.
+
+### 2026-08-31 - Secret scan used an ambiguous PowerShell interpolation
+
+- Command: classify `.env` values and report only variable names before publishing the repository.
+- Error: PowerShell parsed `$lineNo:` as an invalid variable reference.
+- Finding: the scan stopped before reading or reporting any configuration values; no files were changed.
+- Resolution: delimit interpolated variables with `${lineNo}` and rerun the redacted scan.

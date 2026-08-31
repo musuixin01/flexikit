@@ -5,7 +5,7 @@ FlexiKit RESTful API 文档，所有接口前缀为 `/api`。
 ## 通用说明
 
 ### 基础 URL
-- 开发环境：`http://localhost:3000`
+- 开发环境：`http://localhost:3001`
 - 生产环境：`https://yourdomain.com/api`
 
 ### 认证方式

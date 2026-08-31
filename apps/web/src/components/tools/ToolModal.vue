@@ -183,6 +183,7 @@ import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
 import type { Tool } from '@/types/tool'
 import { DEF_ICON } from '@/data/data'
+import { resolveApiUrl } from '@/api/runtime'
 
 const tools = useToolsStore()
 const ui = useUiStore()
@@ -265,7 +266,7 @@ async function fetchRecommendedTags() {
     }
     params.set('limit', '10')
 
-    const response = await fetch(`/api/tools/recommend-tags?${params.toString()}`)
+    const response = await fetch(resolveApiUrl(`/api/tools/recommend-tags?${params.toString()}`))
     if (response.ok) {
       const data = await response.json()
       recommendedTags.value = data
@@ -310,7 +311,7 @@ const iconPreviewHtml = computed(() => {
       // 使用多个 favicon 源，后端解析优先，提高成功率
       const faviconSources = [
         // 优先使用后端解析接口（最稳定）
-        `/api/tools/favicon?url=${encodedUrl}`,
+        resolveApiUrl(`/api/tools/favicon?url=${encodedUrl}`),
         // 国内 favicon 服务
         `https://api.iowen.cn/favicon/${domain}.png`,
         // 网站自己的 favicon

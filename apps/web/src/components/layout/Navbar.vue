@@ -1,5 +1,5 @@
 <template>
-  <div :class="['top-navbar', { visible: showMobileNavBar }]" id="topNavbar">
+  <div v-if="!isDesktop" :class="['top-navbar', { visible: showMobileNavBar }]" id="topNavbar">
     <div class="nav-left">
       <button
         v-if="!ui.isMobile && ui.sidebarCollapsed"
@@ -150,6 +150,7 @@ import { useRouter } from 'vue-router'
 import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
+import { isDesktopRuntime } from '@/api/runtime'
 
 // ========== Props ==========
 const props = withDefaults(defineProps<{
@@ -173,6 +174,7 @@ const tools = useToolsStore()
 const ui = useUiStore()
 const user = useUserStore()
 const router = useRouter()
+const isDesktop = isDesktopRuntime()
 
 // ========== 状态 ==========
 const isDarkTheme = ref(false)

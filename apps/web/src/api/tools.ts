@@ -3,6 +3,8 @@ import type { WebsitePreview } from '@/types/tool';
 
 export const toolsApi = {
   getTools: (params?: any) => api.get('/tools', { params }),
+  getRankings: (period: 'today' | 'week' | 'month' = 'week', limit = 12) =>
+    api.get('/tools/rankings', { params: { period, limit } }),
   getTool: (id: number) => api.get(`/tools/${id}`),
   createTool: (data: any) => api.post('/tools', data),
   updateTool: (id: number, data: any) => api.put(`/tools/${id}`, data),

@@ -1,8 +1,7 @@
 import axios from 'axios';
+import { getApiBaseUrl } from './runtime';
 
-const apiBaseURL = import.meta.env.DEV
-  ? '/api'
-  : (import.meta.env.VITE_API_URL || '/api');
+const apiBaseURL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: apiBaseURL,

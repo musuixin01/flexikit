@@ -89,6 +89,7 @@ import { useUserStore } from '@/stores/user'
 import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
 import { useRouter } from 'vue-router'
+import { resolveApiUrl } from '@/api/runtime'
 
 const user = useUserStore()
 const tools = useToolsStore()
@@ -114,8 +115,7 @@ async function exportData() {
     const token = user.token || localStorage.getItem('gtb-token')
     if (!token) throw new Error('未登录')
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3030'
-    const res = await fetch(`${baseUrl}/api/users/export-data`, {
+    const res = await fetch(resolveApiUrl('/api/users/export-data'), {
       headers: { Authorization: `Bearer ${token}` },
     })
 
@@ -156,8 +156,7 @@ async function deleteAccount() {
     const token = user.token || localStorage.getItem('gtb-token')
     if (!token) throw new Error('未登录')
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3030'
-    const res = await fetch(`${baseUrl}/api/users/account`, {
+    const res = await fetch(resolveApiUrl('/api/users/account'), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })

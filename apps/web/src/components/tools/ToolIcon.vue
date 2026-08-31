@@ -21,6 +21,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { Tool } from '@/types/tool'
+import { resolveApiUrl } from '@/api/runtime'
 
 const props = defineProps<{
   tool: Tool
@@ -52,7 +53,7 @@ const faviconSources = computed<string[]>(() => {
 
     // 官网解析优先，公共 favicon 服务仅作为网络受限时的兜底。
     sources.push(
-      `/api/tools/favicon?url=${encodedUrl}`,
+      resolveApiUrl(`/api/tools/favicon?url=${encodedUrl}`),
       `${websiteUrl.origin}/favicon.ico`,
       `${websiteUrl.origin}/favicon.png`,
       `${websiteUrl.origin}/apple-touch-icon.png`,

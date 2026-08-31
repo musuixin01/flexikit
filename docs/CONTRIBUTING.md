@@ -141,7 +141,7 @@ Closes #123
 
 3. 启动开发服务：
    ```bash
-   # 后端（端口3000）
+   # 后端（端口3001）
    cd backend && npm run start:dev
    
    # 前端（端口5173）

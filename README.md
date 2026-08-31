@@ -116,7 +116,7 @@ cp .env.example .env
 # 编辑 .env 配置数据库连接信息
 npm run start:dev
 ```
-后端将在 http://localhost:3000 启动。
+后端将在 http://localhost:3001 启动。
 
 ### 4. 启动前端
 ```bash
@@ -156,7 +156,7 @@ npm run dev
 ### 后端环境变量 (.env)
 ```env
 # 服务端口
-PORT=3000
+PORT=3001
 NODE_ENV=development
 
 # 数据库配置

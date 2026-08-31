@@ -8,6 +8,7 @@ import { toolsApi } from '@/api/tools'
 import { favoritesApi } from '@/api/favorites'
 import { categoriesApi } from '@/api/categories'
 import { backendToFrontend, type BackendTool } from '@/api/toolMapper'
+import { resolveApiUrl } from '@/api/runtime'
 
 export const useToolsStore = defineStore('tools', () => {
   const builtinTools = ref<Tool[]>([])
@@ -128,7 +129,7 @@ export const useToolsStore = defineStore('tools', () => {
       const encodedUrl = encodeURIComponent(url)
       return [
         // 优先使用后端解析接口（最稳定，直接从网站获取）
-        `/api/tools/favicon?url=${encodedUrl}`,
+        resolveApiUrl(`/api/tools/favicon?url=${encodedUrl}`),
         // 国内 favicon 服务
         `https://api.iowen.cn/favicon/${domain}.png`,
         // Yandex favicon（俄罗斯的，国内可能能访问）

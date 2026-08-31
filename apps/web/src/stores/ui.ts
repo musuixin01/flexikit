@@ -1,6 +1,7 @@
 ﻿import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import type { Theme } from '@/types/tool'
+import { isDesktopRuntime } from '@/api/runtime'
 
 // 预设主题�?
 export const PRESET_PRIMARY_COLORS = [
@@ -106,9 +107,13 @@ export const useUiStore = defineStore('ui', () => {
   const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
   const isMobile = computed(() => windowWidth.value <= 860)
 
-  // 响应式列数：移动端固�?�?
+  // 桌面窗口缩小时限制最大列数，避免高列数把卡片压成狭长条。
   const effectiveGridColumns = computed(() => {
     if (isMobile.value) return 2
+    if (isDesktopRuntime()) {
+      if (windowWidth.value <= 1100) return Math.min(layout.value.gridColumns, 4)
+      if (windowWidth.value <= 1400) return Math.min(layout.value.gridColumns, 5)
+    }
     return layout.value.gridColumns
   })
 
