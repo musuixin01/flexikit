@@ -16,6 +16,9 @@
 - 🔒 增加文件路径白名单校验
 - 🔒 移除公开 `POST /tools/:id/open` 后端程序启动接口，将本地工具启动迁移到 Tauri IPC；规范化路径并限制为 `.exe/.lnk/.url/.msi`
 
+### 产品优化
+- ✨ 落地页 V2：重构 Hero、产品工作台预览、能力证明带、核心能力、隐私设计与 CTA 叙事；导航与按钮交互统一 Apple 曲线，补齐移动端布局和 prefers-reduced-motion；删除旧统计/技术栈/预览反馈死样式，保持轻量且不改变业务路由。
+
 ### 新增
 - 💬 原生桌面 AI 助手 V1：Desktop 新增 /assistant 与侧边栏入口，支持平台自动路由/显式 Provider/Model 和 OpenAI/Gemini/Anthropic BYOK；新增 JWT POST /v1/ai/assistant/generate，继续复用 S5.1 usage/retry/fallback。BYOK Key 仅在发送瞬间从 DPAPI Vault/浏览器运行期内存读取并作为单次请求临时传递，Prompt/Response 不入 usage ledger/数据库；当前页面消息仅 Vue 内存保存，刷新即清空。
 - 🧩 AI 当前工具上下文：成功打开 FlexiKit Tool 后仅在运行期内存记录安全元数据，Assistant 发送前可见并可关闭；仅传 id/name/category/web|local/hostname，不传本地路径。Backend 嵌套 DTO 强校验并把工具字段作为不可信描述数据注入，继续不持久化 Prompt/Response/context。

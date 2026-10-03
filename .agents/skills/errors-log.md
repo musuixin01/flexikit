@@ -2869,3 +2869,11 @@
 - Error: Docker refused to create \`flexikit-postgres\` because an existing container already owns that name.
 - Finding: this indicates existing local database state is present; deleting/recreating it would risk unnecessary data loss.
 - Resolution: inspect the existing FlexiKit containers and start/reuse them instead of removing or recreating persistent state.
+
+
+### 2026-10-04 - Landing documentation sync required precise newline-aware anchors
+
+- Command intent: synchronize Landing V2 completion into CHANGELOG, STABLE_CHECKLIST and MASTER_PLAN.
+- Error: transactional apply_text_edits first rejected the mixed LF/CRLF Markdown batch; subsequent guarded byte retries were also rejected before write because the CHANGELOG marker was not unique and the retry asserted uniqueness.
+- Finding: all rejected attempts left the documentation files unchanged.
+- Resolution: preflight every target SHA first, use the known Unreleased CHANGELOG byte anchor plus unique structural markers for the other files, and preserve each file's local newline format.

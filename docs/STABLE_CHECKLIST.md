@@ -59,6 +59,7 @@
 - [x] S5.3 相似工具推荐（最近最多 3 个公开收藏为 semantic seeds；复用 ToolVectorSearchService exact cosine；best-similarity + seed/candidate rank + Tool id deterministic merge；全部收藏最终排除；vector failure/shortfall → favorite-safe public popular fallback；匿名/无收藏保持 popular fallback；Discover 登录+全部来源接 /recommendations，source filter/匿名保留 Discovery path，device-local tag matcher 只在客户端重排；不返回 embedding/provenance/similarity；Backend/Web build + similar/pgvector/tag/heat UI regressions + type-audit 全通过）
 - [x] S5.3 推荐解释（/recommendations/explained 与原 Tool[] 接口并存；服务端仅 similar_favorite/popular + 可选公开收藏种子名称；不返回 cosine/similarity/embedding/provenance/internal ranks/confidence；Discover 本机合并 strongest tag/category affinity 原因且行为不上云；ToolCard discovery-only 单行解释；popular fallback 明示且不伪造热度；Backend/Web build、Web explanation/tag/heat UI、Backend similar/pgvector/type-audit 全通过）
 - [x] Admin Console V1（Overview / Users / AI Usage & Cost；users.role=user/admin + users.status=active/suspended 持久化；ADMIN_USER_IDS 仅作 bootstrap/recovery；暂停账号事务化撤销 Refresh Sessions；普通管理员可管理/删除普通用户，bootstrap-admin 才可管理管理员角色；禁止自停用、自降权、自删除和直接删除管理员；删除用户名二次确认 + 事务清理 + append-only 审计；AI Usage 已展示真实 Provider Token、平台/BYOK 分账、成本估算与未定价保护；安全字段继续排除 password hash / Token hash / BYOK Key / Prompt / Response / 本地内容）
+- [x] Landing V2 产品打磨（Hero/Workspace Preview/产品能力带/核心能力/隐私/CTA 响应式重构；Apple 交互曲线 + reduced-motion；移除旧统计/技术栈/preview dead CSS；Web `vue-tsc && vite build` 通过）
 
 ## 核心流程
 
