@@ -1,5 +1,5 @@
 <template>
-  <router-view v-if="isPetWindow" />
+  <router-view v-if="isPetWindow || isCanvasWindow" />
 
   <template v-else>
     <div class="bg-layer" aria-hidden="true"></div>
@@ -14,6 +14,7 @@
       <router-view v-else />
     </div>
     <SettingsPanel />
+    <GlobalSearchOverlay v-if="isDesktop && !isPetWindow && !isCanvasWindow" />
     <CookieConsent v-if="!isDesktop" />
   </template>
 </template>
@@ -25,6 +26,7 @@ import SettingsPanel from '@/components/layout/SettingsPanel.vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import DesktopTitlebar from '@/components/layout/DesktopTitlebar.vue'
 import CookieConsent from '@/components/common/CookieConsent.vue'
+import GlobalSearchOverlay from '@/components/desktop/GlobalSearchOverlay.vue'
 import { isDesktopRuntime } from '@/api/runtime'
 import { useUiStore } from '@/stores/ui'
 
@@ -33,10 +35,11 @@ const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
 const isPetWindow = computed(() => isDesktop && route.name === 'Pet')
-const showDesktopShell = computed(() => isDesktop && route.name !== 'Home' && route.name !== 'Pet')
+const isCanvasWindow = computed(() => isDesktop && route.name === 'DesktopCanvas')
+const showDesktopShell = computed(() => isDesktop && route.name !== 'Home' && route.name !== 'Pet' && route.name !== 'DesktopCanvas')
 
 function applyPetSearch() {
-  if (!isDesktop || isPetWindow.value) return
+  if (!isDesktop || isPetWindow.value || isCanvasWindow.value) return
   const keyword = localStorage.getItem('flexikit-pet-search')?.trim()
   if (!keyword) return
   localStorage.removeItem('flexikit-pet-search')

@@ -28,7 +28,7 @@ export class HttpService {
   /**
    * GET 请求获取 JSON
    */
-  async getJson<T = any>(url: string, options: HttpOptions = {}): Promise<T> {
+  async getJson<T = unknown>(url: string, options: HttpOptions = {}): Promise<T> {
     const text = await this.getText(url, options);
     return JSON.parse(text) as T;
   }

@@ -59,12 +59,12 @@
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
-| ✅ 用户协议 (Terms) | 已完成 | `frontend/src/views/Terms.vue` |
-| ✅ 隐私政策 (Privacy) | 已完成 | `frontend/src/views/Privacy.vue` |
-| ✅ Cookie 同意横幅 | 已完成 | `frontend/src/components/common/CookieConsent.vue` |
+| ✅ 用户协议 (Terms) | 已完成 | `apps/web/src/views/Terms.vue` |
+| ✅ 隐私政策 (Privacy) | 已完成 | `apps/web/src/views/Privacy.vue` |
+| ✅ Cookie 同意横幅 | 已完成 | `apps/web/src/components/common/CookieConsent.vue` |
 | ✅ GDPR 数据导出 API | 已完成 | `GET /api/users/export-data` |
 | ✅ GDPR 账号删除 API | 已完成 | `DELETE /api/users/account` |
-| ✅ 数据管理页面 | 已完成 | `frontend/src/views/DataManagement.vue` |
+| ✅ 数据管理页面 | 已完成 | `apps/web/src/views/DataManagement.vue` |
 | 🔲 ICP 备案 | 待办 | 需要域名 + 国内服务器 |
 | 🔲 工信部备案号悬挂 | 待办 | 备案通过后添加到页脚 |
 | 🔲 公安联网备案 | 待办 | ICP 备案后 30 天内 |
@@ -95,7 +95,7 @@
 # 3. 部署 HTTPS（Let's Encrypt）
 # 4. 添加备案号到 Landing.vue 页脚
 # 5. 前端构建 + 部署
-cd frontend
+cd apps/web
 npm run build
 ```
 

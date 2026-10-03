@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { DEF_ICON } from '@/data/data'
+import { DEF_ICON, FAC } from '@/data/data'
 import type { Tool, DeletedBatch, DeletedItem, ExportData } from '@/types/tool'
 import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
@@ -9,6 +9,8 @@ import { favoritesApi } from '@/api/favorites'
 import { categoriesApi } from '@/api/categories'
 import { backendToFrontend, type BackendTool } from '@/api/toolMapper'
 import { resolveApiUrl } from '@/api/runtime'
+import { migrateToolExportData, TOOL_EXPORT_VERSION } from '@/migrations/toolExportMigrations'
+import { recordRecommendationBehaviorEvent } from '@/recommendations/behaviorEvents'
 
 export const useToolsStore = defineStore('tools', () => {
   const builtinTools = ref<Tool[]>([])
@@ -201,11 +203,16 @@ export const useToolsStore = defineStore('tools', () => {
 
   async function loadFromBackend() {
     const user = useUserStore()
-    const requestToken = localStorage.getItem('token')
+    const requestWasLoggedIn = user.isLoggedIn
+    const requestUserId = user.profile?.id ?? null
+    const sessionUnchanged = () => (
+      requestWasLoggedIn === user.isLoggedIn
+      && (!requestWasLoggedIn || user.profile?.id === requestUserId)
+    )
 
     try {
       const res = await toolsApi.getTools({ limit: 500 })
-      if (requestToken !== localStorage.getItem('token')) return
+      if (!sessionUnchanged()) return
 
       const items: BackendTool[] = res.data.items || []
       const builtin: Tool[] = []
@@ -231,7 +238,7 @@ export const useToolsStore = defineStore('tools', () => {
       if (user.isLoggedIn) {
         try {
           const favRes = await favoritesApi.getFavorites()
-          if (requestToken !== localStorage.getItem('token') || !user.isLoggedIn) return
+          if (!sessionUnchanged()) return
 
           const favIds: number[] = favRes.data || []
           const favSet = new Set<string>()
@@ -256,13 +263,13 @@ export const useToolsStore = defineStore('tools', () => {
 
       try {
         const catRes = await categoriesApi.getCategories()
-        categoryNames.value = (catRes.data || []).map((c: any) => c.name || c)
+        categoryNames.value = (catRes.data || []).map(c => c.name)
       } catch {
         // ignore category failures
       }
 
-      // 检查 token 是否变化（防止并发请求）
-      if (requestToken !== localStorage.getItem('token')) return
+      // 会话变化时丢弃旧请求结果，Access Token 轮换本身不视为会话变化。
+      if (!sessionUnchanged()) return
 
       isLoaded.value = true
       if (user.isLoggedIn) {
@@ -271,8 +278,8 @@ export const useToolsStore = defineStore('tools', () => {
       await loadLocalIcons()
     } catch (e) {
       console.warn('Backend unavailable, loading from localStorage...', e)
-      // 检查 token 是否变化（防止退出登录后还加载旧数据）
-      if (requestToken !== localStorage.getItem('token')) return
+      // 退出或切换账号后，不让旧请求的本地回退数据覆盖新会话。
+      if (!sessionUnchanged()) return
       loadCustomTools()
       loadFavorites()
       if (builtinTools.value.length === 0) {
@@ -284,7 +291,7 @@ export const useToolsStore = defineStore('tools', () => {
 
   async function loadDefaultFAC() {
     try {
-      const mod = await import('@/data/data')
+      const mod = { FAC }
       builtinTools.value = (mod.FAC as Tool[]).map(tool => normalizeTool({
         ...tool,
         isCustom: false,
@@ -296,7 +303,7 @@ export const useToolsStore = defineStore('tools', () => {
   }
 
   async function loadLocalIcons() {
-    const { toolsApi } = await import('@/api/tools')
+
     for (const tool of allTools.value) {
       if (tool.localPath && !tool.customIcon) {
         try {
@@ -582,6 +589,7 @@ export const useToolsStore = defineStore('tools', () => {
         } catch {
           console.warn('Failed to remove favorite on backend, local state kept in sync')
         }
+        recordRecommendationBehaviorEvent('favorite_remove', targetTool.id)
       }
       ui.showToast('已取消收藏')
       return false
@@ -595,6 +603,7 @@ export const useToolsStore = defineStore('tools', () => {
       } catch {
         console.warn('Failed to add favorite on backend, local state kept in sync')
       }
+      recordRecommendationBehaviorEvent('favorite_add', targetTool.id)
     }
     ui.showToast('已添加到收藏')
     return true
@@ -602,7 +611,7 @@ export const useToolsStore = defineStore('tools', () => {
 
   function exportData(): string {
     const data: ExportData = {
-      version: '1.0',
+      version: TOOL_EXPORT_VERSION,
       exportDate: new Date().toISOString(),
       customTools: customTools.value.map(t => ({ ...t, isCustom: true, is_custom: true })),
       catOrder: [],
@@ -614,10 +623,13 @@ export const useToolsStore = defineStore('tools', () => {
   }
 
   function importData(jsonStr: string): number {
-    const imported = JSON.parse(jsonStr)
-    if (!imported.customTools || !Array.isArray(imported.customTools)) {
-      throw new Error('无效的备份文件格式')
+    let raw: unknown
+    try {
+      raw = JSON.parse(jsonStr)
+    } catch {
+      throw new Error('工具导入文件不是有效 JSON')
     }
+    const imported = migrateToolExportData(raw)
 
     const existingMap = new Map<string, Tool>()
     for (const tool of customTools.value) {
@@ -676,6 +688,7 @@ export const useToolsStore = defineStore('tools', () => {
     ui.showOnlyFav = false
     ui.searchQuery = ''
     ui.activeCategory = '全部'
+    ui.toolTypeFilter = 'all'
     ui.exitSelectMode()
 
     localStorage.removeItem('gtb-custom')

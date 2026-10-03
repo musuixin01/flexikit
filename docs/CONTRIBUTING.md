@@ -131,7 +131,7 @@ Closes #123
    cd backend && npm install
    
    # 前端
-   cd frontend && npm install
+   cd apps/web && npm install
    ```
 
 2. 启动数据库：
@@ -145,7 +145,7 @@ Closes #123
    cd backend && npm run start:dev
    
    # 前端（端口5173）
-   cd frontend && npm run dev
+   cd apps/web && npm run dev
    ```
 
 ## 测试
@@ -166,10 +166,12 @@ Closes #123
 
 ## 发布流程（维护者）
 
-1. 更新 CHANGELOG.md
-2. 更新版本号（package.json）
-3. 创建 tag
-4. 发布 Release
+1. 更新 `CHANGELOG.md`
+2. 按 `docs/RELEASE_STRATEGY.md` 同步 Desktop SemVer
+3. 运行 `npm run release:check-version`
+4. 完成 release bundle、安装/升级/卸载回归并记录 SHA-256
+5. 创建与产品版本一致的 `vX.Y.Z` tag
+6. 发布 Release
 
 ---
 

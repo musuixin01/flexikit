@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { DiscoveryService } from './discovery.service';
+import { DiscoveryQueryDto } from './dto/discovery-query.dto';
 
 @Controller('discovery')
 export class DiscoveryController {
@@ -9,7 +10,7 @@ export class DiscoveryController {
    * 获取发现工具列表
    */
   @Get()
-  findAll(@Query() query) {
+  findAll(@Query() query: DiscoveryQueryDto) {
     return this.discoveryService.findAll(query);
   }
 

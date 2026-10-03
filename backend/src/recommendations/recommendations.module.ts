@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Tool } from '../tools/tool.entity';
 import { Favorite } from '../favorites/favorite.entity';
+import { EmbeddingModule } from '../embedding/embedding.module';
 import { RecommendationsService } from './recommendations.service';
 import { RecommendationsController } from './recommendations.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tool, Favorite])],
+  imports: [TypeOrmModule.forFeature([Tool, Favorite]), EmbeddingModule],
   providers: [RecommendationsService],
   controllers: [RecommendationsController],
 })

@@ -7,15 +7,19 @@ import * as http from 'http';
 import * as https from 'https';
 import * as cheerio from 'cheerio';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Brackets, Repository, In } from 'typeorm';
 import { Tool } from './tool.entity';
-import { CreateToolDto, UpdateToolDto } from './dto';
+import { CreateToolDto, ToolsQueryDto, UpdateToolDto } from './dto';
 import { User } from '../users/user.entity';
 import { validateUrlSafe } from '../common/utils/ssrf.util';
 import { Logger } from '@nestjs/common';
 
 const execFileAsync = promisify(execFile);
 const logger = new Logger('ToolsService');
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 @Injectable()
 export class ToolsService {
@@ -25,16 +29,7 @@ export class ToolsService {
   ) {}
 
   // ========== 修复的 findAll ==========
-  async findAll(
-    userId: number | null,
-    query: {
-      category?: string;
-      search?: string;
-      favorite?: boolean;
-      limit?: number;
-      offset?: number;
-    }
-  ) {
+  async findAll(userId: number | null, query: ToolsQueryDto) {
     const { category, search, favorite, limit = 50, offset = 0 } = query;
     const qb = this.toolsRepository.createQueryBuilder('tool');
 
@@ -42,7 +37,13 @@ export class ToolsService {
     if (userId === null) {
       qb.where('tool.user_id IS NULL');
     } else {
-      qb.where('tool.user_id IS NULL OR tool.user_id = :userId', { userId });
+      qb.where(
+        new Brackets((scope) => {
+          scope
+            .where('tool.user_id IS NULL')
+            .orWhere('tool.user_id = :userId', { userId });
+        }),
+      );
     }
 
     // 分类筛选
@@ -60,7 +61,10 @@ export class ToolsService {
 
     // 收藏筛选：只有已登录用户才支持
     if (favorite && userId !== null) {
-      qb.innerJoin('tool.favorites', 'fav', 'fav.user_id = :userId');
+      qb.andWhere(
+        'EXISTS (SELECT 1 FROM favorites fav WHERE fav.tool_id = tool.id AND fav.user_id = :favoriteUserId)',
+        { favoriteUserId: userId },
+      );
     }
 
     qb.orderBy('tool.created_at', 'DESC')
@@ -115,81 +119,6 @@ export class ToolsService {
       throw new ForbiddenException('Not your tool');
     }
     await this.toolsRepository.remove(tool);
-  }
-
-  async openTool(id: number, userId: number, fallbackPath?: string) {
-    let localPath: string | null = fallbackPath || null;
-    let url: string | null = null;
-
-    try {
-      const tool = await this.findOne(id);
-      if (tool) {
-        localPath = tool.local_path || localPath;
-        url = tool.url || null;
-      }
-    } catch {
-      // ignore
-    }
-
-    if (localPath) {
-      // 安全验证路径
-      const resolvedPath = path.resolve(localPath.trim());
-      
-      // 验证文件存在
-      if (!fs.existsSync(resolvedPath)) {
-        throw new BadRequestException(`文件不存在: ${resolvedPath}`);
-      }
-      
-      // 只允许常见可执行文件和快捷方式
-      const allowedExtensions = ['.exe', '.lnk', '.url', '.bat', '.cmd', '.msi'];
-      const ext = path.extname(resolvedPath).toLowerCase();
-      if (!allowedExtensions.includes(ext)) {
-        throw new BadRequestException('不支持的文件类型，仅支持可执行文件');
-      }
-
-      try {
-        if (process.platform === 'win32') {
-          // Windows: 使用 cmd /c start，参数数组传递避免注入
-          await execFileAsync('cmd.exe', ['/c', 'start', '', resolvedPath], { timeout: 5000 });
-        } else if (process.platform === 'darwin') {
-          await execFileAsync('open', [resolvedPath], { timeout: 5000 });
-        } else {
-          await execFileAsync('xdg-open', [resolvedPath], { timeout: 5000 });
-        }
-        return { success: true, opened: 'local', path: resolvedPath };
-      } catch (e: any) {
-        logger.error(`打开本地文件失败: ${e.message}`);
-        throw new BadRequestException(`无法打开文件`);
-      }
-    }
-
-    if (url && url !== '#') {
-      // 验证URL协议，只允许http/https
-      try {
-        const urlObj = new URL(url);
-        if (!['http:', 'https:'].includes(urlObj.protocol)) {
-          throw new BadRequestException('不支持的URL协议');
-        }
-      } catch (e) {
-        throw new BadRequestException('无效的URL');
-      }
-
-      try {
-        if (process.platform === 'win32') {
-          await execFileAsync('cmd.exe', ['/c', 'start', '', url], { timeout: 5000 });
-        } else if (process.platform === 'darwin') {
-          await execFileAsync('open', [url], { timeout: 5000 });
-        } else {
-          await execFileAsync('xdg-open', [url], { timeout: 5000 });
-        }
-        return { success: true, opened: 'url', url };
-      } catch (e: any) {
-        logger.error(`打开URL失败: ${e.message}`);
-        throw new BadRequestException(`无法打开链接`);
-      }
-    }
-
-    throw new BadRequestException('该工具没有链接或本地路径');
   }
 
   async getLocalIcon(filePath: string) {
@@ -253,8 +182,8 @@ if ($icon) {
       if (base64) {
         return { icon: `data:image/png;base64,${base64}` };
       }
-    } catch (e: any) {
-      logger.warn(`提取图标失败: ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`提取图标失败: ${getErrorMessage(e)}`);
     }
     return {
       icon: `<svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><rect x="8" y="6" width="8" height="7" rx="1" fill="#6366f1" fill-opacity=".15"/></svg>`

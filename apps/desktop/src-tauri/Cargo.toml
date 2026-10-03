@@ -10,9 +10,13 @@ rust-version = "1.70"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
+indexmap = { version = "1.9.3", features = ["std"] }
 
 [dependencies]
 tauri = { version = "2.0", features = [] }
+windows = { version = "=0.61.3", features = ["ApplicationModel", "ApplicationModel_Core", "Management_Deployment", "Media_Control", "Storage_Search", "Storage_Streams", "Win32_Foundation", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_UI_Shell"] }
+base64 = "=0.22.1"
+png = "=0.17.16"
 
 [features]
 default = ["custom-protocol"]

@@ -1,19 +1,12 @@
-import { BadRequestException, Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, Response, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, Response, NotFoundException, ParseIntPipe } from '@nestjs/common';
 import { ToolsService } from './tools.service';
-import { CreateToolDto, UpdateToolDto } from './dto';
+import { CreateToolDto, ToolsQueryDto, UpdateToolDto } from './dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
 import { TagRecommendationService } from './tag-recommendation.service';
-import { Response as ExpressResponse, Request as ExpressRequest } from 'express';
-
-interface UserInfo {
-  userId: number;
-  username: string;
-}
-
-interface UserRequest extends ExpressRequest {
-  user?: UserInfo;
-}
+import { Response as ExpressResponse } from 'express';
+import { RawResponse } from '../common/decorators/raw-response.decorator';
+import type { AuthenticatedRequest, OptionalUserRequest } from '../common/types/authenticated-request';
 
 @Controller('tools')
 export class ToolsController {
@@ -24,7 +17,7 @@ export class ToolsController {
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
-  findAll(@Request() req: UserRequest, @Query() query: any) {
+  findAll(@Request() req: OptionalUserRequest, @Query() query: ToolsQueryDto) {
     // 未登录只返回内置工具；已登录返回内置工具 + 当前用户自定义工具。
     const userId = req.user?.userId || null;
     return this.toolsService.findAll(userId, query);
@@ -43,7 +36,7 @@ export class ToolsController {
   @Get('recommend-tags')
   @UseGuards(OptionalJwtAuthGuard)
   async recommendTags(
-    @Request() req: UserRequest,
+    @Request() req: OptionalUserRequest,
     @Query('name') name: string,
     @Query('description') description: string,
     @Query('url') url?: string,
@@ -71,9 +64,10 @@ export class ToolsController {
 
   // 公开端点：获取网站 favicon（后端解析，更稳定）
   @Get('favicon')
+  @RawResponse()
   async getFavicon(@Query('url') siteUrl: string, @Response() res: ExpressResponse) {
     if (!siteUrl) {
-      return res.status(400).send('Missing url parameter');
+      throw new BadRequestException('Missing url parameter');
     }
 
     try {
@@ -108,38 +102,32 @@ export class ToolsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number) {
+  findOne(@Param('id', ParseIntPipe) id: number) {
     return this.toolsService.findOne(id);
   }
 
   // 以下操作需要登录，保留守卫
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() createDto: CreateToolDto, @Request() req: UserRequest) {
-    return this.toolsService.create(createDto, req.user!.userId);
+  create(@Body() createDto: CreateToolDto, @Request() req: AuthenticatedRequest) {
+    return this.toolsService.create(createDto, req.user.userId);
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: number, @Body() updateDto: UpdateToolDto, @Request() req: UserRequest) {
-    return this.toolsService.update(id, updateDto, req.user!.userId);
-  }
-
-  // 公开端点：打开工具
-  @Post(':id/open')
-  async openTool(@Param('id') id: number, @Query('path') fallbackPath?: string) {
-    return this.toolsService.openTool(id, 0, fallbackPath);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  delete(@Param('id') id: number, @Request() req: UserRequest) {
-    return this.toolsService.delete(id, req.user!.userId);
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateDto: UpdateToolDto, @Request() req: AuthenticatedRequest) {
+    return this.toolsService.update(id, updateDto, req.user.userId);
   }
 
   @Delete('batch')
   @UseGuards(JwtAuthGuard)
-  deleteBatch(@Body('ids') ids: number[], @Request() req: UserRequest) {
-    return this.toolsService.deleteBatch(ids, req.user!.userId);
+  deleteBatch(@Body('ids') ids: number[], @Request() req: AuthenticatedRequest) {
+    return this.toolsService.deleteBatch(ids, req.user.userId);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  delete(@Param('id', ParseIntPipe) id: number, @Request() req: AuthenticatedRequest) {
+    return this.toolsService.delete(id, req.user.userId);
   }
 }

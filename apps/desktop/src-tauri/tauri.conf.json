@@ -39,6 +39,24 @@
         "resizable": false,
         "fullscreen": false,
         "visible": true
+      },
+      {
+        "label": "canvas",
+        "title": "FlexiKit Desktop Canvas",
+        "url": "index.html#/canvas",
+        "width": 1080,
+        "height": 720,
+        "minWidth": 520,
+        "minHeight": 360,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": true,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "visible": false
       }
     ],
     "security": {

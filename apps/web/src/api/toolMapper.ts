@@ -28,6 +28,8 @@ export interface FrontendTool {
   isCustom?: boolean
   customIcon?: string | null
   localPath?: string | null
+  cardColor?: string | null
+  card_color?: string | null
   id?: number
   description?: string
   category?: string | null

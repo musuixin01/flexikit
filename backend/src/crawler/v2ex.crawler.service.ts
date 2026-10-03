@@ -4,6 +4,43 @@ import { CrawlerService, CrawledTool } from './crawler.service';
 import { DiscoveryService } from '../discovery/discovery.service';
 import * as https from 'https';
 
+interface V2exTopic {
+  id: number | string;
+  title: string;
+  url?: string;
+  content?: string;
+  replies?: number;
+  stars?: number;
+  created?: number;
+  node?: {
+    stars?: number;
+  };
+}
+
+function isOptionalNumber(value: unknown): value is number | undefined {
+  return value === undefined || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function isV2exTopic(value: unknown): value is V2exTopic {
+  if (!value || typeof value !== 'object') return false;
+  const topic = value as Record<string, unknown>;
+  const id = topic.id;
+  if (typeof topic.title !== 'string' || (typeof id !== 'number' && typeof id !== 'string')) {
+    return false;
+  }
+  if (topic.url !== undefined && typeof topic.url !== 'string') return false;
+  if (topic.content !== undefined && typeof topic.content !== 'string') return false;
+  if (!isOptionalNumber(topic.replies) || !isOptionalNumber(topic.stars) || !isOptionalNumber(topic.created)) {
+    return false;
+  }
+  if (topic.node !== undefined) {
+    if (!topic.node || typeof topic.node !== 'object') return false;
+    const node = topic.node as Record<string, unknown>;
+    if (!isOptionalNumber(node.stars)) return false;
+  }
+  return true;
+}
+
 @Injectable()
 export class V2exCrawlerService extends CrawlerService {
   private readonly baseUrl = 'https://www.v2ex.com';
@@ -44,7 +81,7 @@ export class V2exCrawlerService extends CrawlerService {
   /**
    * 获取最新主题
    */
-  private async fetchLatestTopics(): Promise<any[]> {
+  private async fetchLatestTopics(): Promise<V2exTopic[]> {
     const url = `${this.baseUrl}/api/topics/show.json?node_name=${this.nodeName}`;
     
     return new Promise((resolve, reject) => {
@@ -58,9 +95,10 @@ export class V2exCrawlerService extends CrawlerService {
         res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
           try {
-            const json = JSON.parse(data);
-            this.logger.log(`V2EX API 返回 ${Array.isArray(json) ? json.length : 0} 个主题`);
-            resolve(Array.isArray(json) ? json : []);
+            const json: unknown = JSON.parse(data);
+            const topics = Array.isArray(json) ? json.filter(isV2exTopic) : [];
+            this.logger.log(`V2EX API 返回 ${topics.length} 个有效主题`);
+            resolve(topics);
           } catch (e) {
             this.logger.error('V2EX API 响应解析失败', e);
             reject(e);
@@ -83,7 +121,7 @@ export class V2exCrawlerService extends CrawlerService {
   /**
    * 从主题中提取工具信息
    */
-  private extractToolsFromTopics(topics: any[]): CrawledTool[] {
+  private extractToolsFromTopics(topics: V2exTopic[]): CrawledTool[] {
     const tools: CrawledTool[] = [];
     
     for (const topic of topics) {

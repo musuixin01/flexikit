@@ -4,130 +4,68 @@
       <div class="cookie-content">
         <div class="cookie-icon">🍪</div>
         <div class="cookie-text">
-          <p class="cookie-title">我们使用 Cookie</p>
+          <p class="cookie-title">登录 Cookie 与本地隐私</p>
           <p class="cookie-desc">
-            FlexiKit 使用必要的 Cookie 来保证服务正常运行，并使用功能 Cookie 来记住您的偏好。
-            详情请参阅我们的
+            FlexiKit 网页版仅使用必要的 HttpOnly 登录 Cookie 来维持 Refresh Session。
+            主题、布局和隐私偏好保存在当前设备的本地存储中；当前未启用分析 Cookie。
+            详情请参阅
             <router-link to="/privacy" class="cookie-link">隐私政策</router-link>。
           </p>
         </div>
       </div>
       <div class="cookie-actions">
-        <button class="cookie-btn cookie-btn-customize" @click="openPanel">
-          自定义
+        <router-link to="/data" class="cookie-btn cookie-btn-customize">
+          隐私设置
+        </router-link>
+        <button class="cookie-btn cookie-btn-accept" @click="dismissNotice">
+          知道了
         </button>
-        <button class="cookie-btn cookie-btn-accept" @click="acceptAll">
-          全部接受
-        </button>
-      </div>
-
-      <!-- 自定义面板 -->
-      <div v-if="showPanel" class="cookie-panel">
-        <h4>Cookie 偏好设置</h4>
-        <div class="cookie-option">
-          <div class="cookie-option-info">
-            <strong>必要 Cookie</strong>
-            <span>用于用户认证和安全防护，无法禁用。</span>
-          </div>
-          <label class="toggle disabled">
-            <input type="checkbox" checked disabled />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="cookie-option">
-          <div class="cookie-option-info">
-            <strong>功能 Cookie</strong>
-            <span>记住主题偏好、布局设置、语言选择。</span>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" v-model="prefs.functional" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="cookie-option">
-          <div class="cookie-option-info">
-            <strong>分析 Cookie</strong>
-            <span>匿名统计访问量和使用情况，帮助我们改进服务。</span>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" v-model="prefs.analytics" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="cookie-panel-actions">
-          <button class="cookie-btn cookie-btn-save" @click="savePrefs">
-            保存偏好
-          </button>
-        </div>
       </div>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 
-const COOKIE_CONSENT_KEY = 'flexikit-cookie-consent'
+const COOKIE_NOTICE_KEY = 'flexikit-cookie-consent'
+const COOKIE_NOTICE_VERSION = 2
+const NOTICE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000
 
-interface ConsentPrefs {
-  necessary: boolean  // always true
-  functional: boolean
-  analytics: boolean
+interface CookieNoticeState {
+  version: number
+  necessaryOnly: true
   timestamp: number
 }
 
 const visible = ref(false)
-const showPanel = ref(false)
-
-const prefs = ref<Omit<ConsentPrefs, 'necessary' | 'timestamp'>>({
-  functional: true,
-  analytics: false,
-})
 
 onMounted(() => {
-  const saved = localStorage.getItem(COOKIE_CONSENT_KEY)
+  const saved = localStorage.getItem(COOKIE_NOTICE_KEY)
   if (!saved) {
-    // 未同意过，显示横幅
     visible.value = true
-  } else {
-    try {
-      const consent: ConsentPrefs = JSON.parse(saved)
-      // 超过 365 天重新询问
-      if (Date.now() - consent.timestamp > 365 * 24 * 60 * 60 * 1000) {
-        visible.value = true
-      }
-    } catch {
-      visible.value = true
-    }
+    return
+  }
+
+  try {
+    const notice = JSON.parse(saved) as Partial<CookieNoticeState>
+    visible.value = notice.version !== COOKIE_NOTICE_VERSION
+      || notice.necessaryOnly !== true
+      || typeof notice.timestamp !== 'number'
+      || Date.now() - notice.timestamp > NOTICE_MAX_AGE_MS
+  } catch {
+    visible.value = true
   }
 })
 
-function saveConsent(consent: ConsentPrefs) {
-  localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent))
+function dismissNotice() {
+  const notice: CookieNoticeState = {
+    version: COOKIE_NOTICE_VERSION,
+    necessaryOnly: true,
+    timestamp: Date.now(),
+  }
+  localStorage.setItem(COOKIE_NOTICE_KEY, JSON.stringify(notice))
   visible.value = false
-  showPanel.value = false
-}
-
-function acceptAll() {
-  saveConsent({
-    necessary: true,
-    functional: true,
-    analytics: true,
-    timestamp: Date.now(),
-  })
-}
-
-function savePrefs() {
-  saveConsent({
-    necessary: true,
-    functional: prefs.value.functional,
-    analytics: prefs.value.analytics,
-    timestamp: Date.now(),
-  })
-}
-
-function openPanel() {
-  showPanel.value = !showPanel.value
 }
 </script>
 
@@ -202,6 +140,8 @@ function openPanel() {
 }
 
 .cookie-btn-customize {
+  text-decoration: none;
+  text-align: center;
   background: var(--btn-bg);
   color: var(--text-secondary);
   border: 1px solid var(--divider);

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { CrawlerService, CrawledTool } from './crawler.service';
+import { CrawlerService, CrawledTool, RssFeedItem } from './crawler.service';
 import { DiscoveryService } from '../discovery/discovery.service';
 import * as https from 'https';
 import * as cheerio from 'cheerio';
@@ -47,7 +47,7 @@ export class Kr36CrawlerService extends CrawlerService {
   /**
    * 获取 RSS feed
    */
-  private async fetchFeed(): Promise<any[]> {
+  private async fetchFeed(): Promise<RssFeedItem[]> {
     return new Promise((resolve, reject) => {
       const req = https.get(this.feedUrl, {
         timeout: 15000,
@@ -83,9 +83,9 @@ export class Kr36CrawlerService extends CrawlerService {
   /**
    * 解析 RSS XML
    */
-  private parseRss(xml: string): any[] {
+  private parseRss(xml: string): RssFeedItem[] {
     const $ = cheerio.load(xml, { xmlMode: true });
-    const items: any[] = [];
+    const items: RssFeedItem[] = [];
 
     $('item').each((_, element) => {
       const title = $(element).find('title').text().trim();
@@ -103,7 +103,7 @@ export class Kr36CrawlerService extends CrawlerService {
   /**
    * 从文章中提取工具信息
    */
-  private async extractToolsFromItems(items: any[]): Promise<CrawledTool[]> {
+  private async extractToolsFromItems(items: RssFeedItem[]): Promise<CrawledTool[]> {
     const tools: CrawledTool[] = [];
 
     for (const item of items) {
@@ -186,7 +186,7 @@ export class Kr36CrawlerService extends CrawlerService {
   /**
    * 提取单个工具的信息
    */
-  private extractToolInfo(item: any): CrawledTool | null {
+  private extractToolInfo(item: RssFeedItem): CrawledTool | null {
     const title = item.title || '';
     const description = this.stripHtml(item.description || '');
 

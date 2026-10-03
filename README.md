@@ -69,18 +69,20 @@ flexikit/
 │   │   └── database/       # 数据库相关
 │   ├── package.json
 │   └── tsconfig.json
-├── frontend/               # Vue3 前端
-│   ├── src/
-│   │   ├── api/            # API 封装
-│   │   ├── components/     # 组件
-│   │   ├── views/          # 页面
-│   │   ├── stores/         # Pinia 状态
-│   │   ├── router/         # 路由
-│   │   ├── types/          # TypeScript 类型
-│   │   ├── styles/         # 样式文件
-│   │   └── data/           # 静态数据
-│   ├── package.json
-│   └── vite.config.ts
+├── apps/
+│   ├── web/                # Vue 3 Web / Desktop 共用前端
+│   │   ├── src/
+│   │   │   ├── api/        # API 与 Desktop Runtime 封装
+│   │   │   ├── components/ # 通用组件与 Desktop Widgets
+│   │   │   ├── desktop/    # Widget Registry / 外观系统
+│   │   │   ├── views/      # 页面与 Desktop Canvas
+│   │   │   ├── stores/     # Pinia 状态
+│   │   │   └── types/      # TypeScript 类型
+│   │   ├── package.json
+│   │   └── vite.config.ts
+│   ├── desktop/            # Tauri 桌面壳与 Rust 原生能力
+│   │   └── src-tauri/
+│   └── mobile/             # 移动端预留目录
 ├── docker/                 # Docker 配置
 │   └── docker-compose.yml
 ├── docs/                   # 项目文档
@@ -93,7 +95,7 @@ flexikit/
 ### 环境要求
 - Node.js >= 18.x
 - Docker & Docker Compose
-- pnpm 或 npm
+- npm >= 9
 
 ### 1. 克隆项目
 ```bash
@@ -120,14 +122,14 @@ npm run start:dev
 
 ### 4. 启动前端
 ```bash
-cd frontend
+cd apps/web
 npm install
 npm run dev
 ```
 前端将在 http://localhost:5173 启动。
 
 ### 5. 一键启动（Windows）
-双击 `start.bat` 即可一键启动数据库、后端、前端。
+双击 `start.bat` 可启动后端和 Web 前端；PostgreSQL / Redis 仍需先通过 `docker/docker-compose.yml` 启动。
 
 ## 📖 使用说明
 
@@ -166,9 +168,10 @@ DB_USER=flexikit
 DB_PASSWORD=flexikit123
 DB_NAME=flexikit_db
 
-# JWT 配置
+# JWT / Access Token 配置
 JWT_SECRET=your_super_secret_key_here
-JWT_EXPIRES_IN=7d
+ACCESS_TOKEN_TTL=30m
+REFRESH_TOKEN_TTL=30d
 
 # Redis 配置
 REDIS_HOST=localhost
@@ -195,6 +198,9 @@ CORS_ORIGIN=https://yourdomain.com
 - [安全说明](docs/SECURITY.md)
 - [部署指南](docs/DEPLOY.md)
 - [API 文档](docs/API.md)
+- [商业化与收费策略](docs/MONETIZATION.md)
+- [产品路线图](docs/ROADMAP.md)
+- [主线阶段执行计划（唯一执行总表）](docs/MASTER_PLAN.md)
 - [更新日志](docs/CHANGELOG.md)
 - [贡献指南](docs/CONTRIBUTING.md)
 

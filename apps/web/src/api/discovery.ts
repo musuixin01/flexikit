@@ -1,4 +1,4 @@
-import api from './index';
+import api from './client';
 
 export interface DiscoveryTool {
   id: number;
@@ -18,6 +18,18 @@ export interface DiscoveryTool {
   updated_at: string;
 }
 
+export interface DiscoveryListResponse {
+  items: DiscoveryTool[];
+  total: number;
+}
+
+export interface DiscoverySource {
+  source: string;
+  count: number;
+}
+
+export type DiscoveryCollectionResponse = DiscoveryTool[] | DiscoveryListResponse;
+
 export const discoveryApi = {
   // 获取发现工具列表
   getTools: (params?: {
@@ -27,20 +39,20 @@ export const discoveryApi = {
     sort?: 'hot' | 'new' | 'upvotes';
     limit?: number;
     offset?: number;
-  }) => api.get('/discovery', { params }),
+  }) => api.get<DiscoveryListResponse>('/discovery', { params }),
 
   // 智能推荐
   getRecommendations: (limit: number = 6, source?: string) =>
-    api.get('/discovery/recommendations', { params: { limit, source } }),
+    api.get<DiscoveryCollectionResponse>('/discovery/recommendations', { params: { limit, source } }),
 
   // 排行榜
   getRankings: (period: string = 'all', limit: number = 10, source?: string) =>
-    api.get('/discovery/rankings', { params: { period, limit, source } }),
+    api.get<DiscoveryCollectionResponse>('/discovery/rankings', { params: { period, limit, source } }),
 
   // 最新发现
   getLatest: (limit: number = 10, offset: number = 0, source?: string) =>
-    api.get('/discovery/latest', { params: { limit, offset, source } }),
+    api.get<DiscoveryCollectionResponse>('/discovery/latest', { params: { limit, offset, source } }),
 
   // 获取所有来源平台
-  getSources: () => api.get('/discovery/sources'),
+  getSources: () => api.get<DiscoverySource[]>('/discovery/sources'),
 };

@@ -15,6 +15,10 @@ export interface Tool {
   is_custom?: boolean
   local_path?: string | null
   card_color?: string | null
+  hotScore?: number
+  upvotes?: number
+  comments?: number
+  source?: string
 }
 
 export interface ToolListResponse {

@@ -34,7 +34,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update', data: { displayName: string; avatar: string; avatarType: any; avatarData: string }): void
+  (e: 'update', data: { displayName: string; avatar: string; avatarType: 'upload' | 'preset' | 'emoji'; avatarData: string }): void
   (e: 'logout'): void
 }>()
 

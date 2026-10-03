@@ -2,6 +2,8 @@
 
 本文档介绍如何在生产环境部署 FlexiKit。
 
+> 当前仓库内的 `docker/docker-compose.yml` 只负责 PostgreSQL 与 Redis。本文件中的 Backend + Nginx 全栈 Compose 属于生产部署模板，并不是当前仓库已落地的 Compose 配置；正式上线前需要单独验证。Web 应用当前实际目录为 `apps/web/`。
+
 ## 服务器要求
 
 - **操作系统**: Ubuntu 22.04 LTS / Debian 12 / CentOS 8+
@@ -45,7 +47,7 @@ cp .env.example .env
 
 编辑 `.env` 文件：
 ```env
-PORT=3000
+PORT=3001
 NODE_ENV=production
 
 # 数据库配置（使用docker网络内地址）
@@ -55,9 +57,10 @@ DB_USER=flexikit
 DB_PASSWORD=your_strong_password_here
 DB_NAME=flexikit_db
 
-# JWT 配置（使用强随机字符串）
+# JWT / Access Token 配置（使用强随机字符串）
 JWT_SECRET=your_very_strong_jwt_secret_here_at_least_32_chars
-JWT_EXPIRES_IN=7d
+ACCESS_TOKEN_TTL=30m
+REFRESH_TOKEN_TTL=30d
 
 # Redis 配置
 REDIS_HOST=redis
@@ -70,11 +73,11 @@ CORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com
 
 #### 4. 构建前端
 ```bash
-cd ../frontend
+cd ../apps/web
 npm install
 npm run build
 ```
-构建产物将生成在 `frontend/dist` 目录。
+构建产物将生成在 `apps/web/dist` 目录。
 
 #### 5. 构建后端
 ```bash
@@ -119,7 +122,7 @@ services:
     container_name: flexikit-backend
     restart: always
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3001"
     env_file: ./backend/.env
     depends_on:
       - postgres
@@ -137,7 +140,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/ssl:/etc/nginx/ssl
-      - ./frontend/dist:/usr/share/nginx/html
+      - ./apps/web/dist:/usr/share/nginx/html
     depends_on:
       - backend
     networks:
@@ -180,9 +183,12 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # API 代理
+    # FlexiKit 新客户端正式使用 /api/v1/*。
+    # proxy_pass 的尾部 / 会移除外层 /api/：
+    # /api/v1/tools -> Backend /v1/tools。
+    # 无版本 /api/* 当前只作为迁移兼容路径保留。
     location /api/ {
-        proxy_pass http://backend:3000/;
+        proxy_pass http://backend:3001/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -225,7 +231,7 @@ NODE_ENV=production pm2 start dist/main.js --name flexikit-backend
 
 #### 3. 部署前端
 ```bash
-cd frontend
+cd apps/web
 npm install
 npm run build
 # 将 dist 目录部署到 Nginx
@@ -238,7 +244,7 @@ server {
     listen 443 ssl http2;
     server_name yourdomain.com;
 
-    root /path/to/frontend/dist;
+    root /path/to/flexikit/apps/web/dist;
     index index.html;
 
     ssl_certificate /path/to/fullchain.pem;
@@ -262,7 +268,7 @@ server {
 
     # API 代理
     location /api/ {
-        proxy_pass http://127.0.0.1:3000/;
+        proxy_pass http://127.0.0.1:3001/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -317,8 +323,8 @@ tail -f /var/log/nginx/error.log
 ### 更新部署
 ```bash
 git pull
-cd frontend && npm run build
-cd ../backend && npm run build && npm run migrate
+cd apps/web && npm run build
+cd ../../backend && npm run build && npm run migration:run
 pm2 restart flexikit-backend
 ```
 
@@ -333,9 +339,9 @@ pm2 restart flexikit-backend
 ### 端口被占用
 ```bash
 # 查看端口占用
-lsof -i :3000
+lsof -i :3001
 # 或
-netstat -tulpn | grep 3000
+netstat -tulpn | grep 3001
 ```
 
 ### 数据库连接失败

@@ -54,6 +54,16 @@
             <span><strong>打开完整 App</strong><small>进入 FlexiKit 工作区</small></span>
             <i>↗</i>
           </button>
+          <button type="button" @click="openCanvas">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="12" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="19" width="7" height="2" rx="1"/></svg>
+            <span><strong>桌面画布</strong><small>打开自由小组件工作台</small></span>
+            <i>↗</i>
+          </button>
+          <button type="button" @click="openWidgetPicker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><path d="M16.5 13v7M13 16.5h7"/></svg>
+            <span><strong>添加桌面组件</strong><small>直接打开 Widget 组件库</small></span>
+            <i>＋</i>
+          </button>
           <button class="pet-exit" type="button" @click="quitApp">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4M14 8l4 4-4 4M9 12h9"/></svg>
             <span><strong>退出 FlexiKit</strong><small>关闭桌面宠物与应用</small></span>
@@ -71,6 +81,7 @@ import ToolIcon from '@/components/tools/ToolIcon.vue'
 import { invokeDesktop } from '@/api/runtime'
 import { toolsApi } from '@/api/tools'
 import { statsApi } from '@/api/stats'
+import { openDesktopTool } from '@/desktop/openTool'
 import { useToolsStore } from '@/stores/tools'
 import type { Tool } from '@/types/tool'
 import { getPersonalToolScore, readToolUsage, recordToolUsage } from '@/utils/toolUsage'
@@ -278,17 +289,28 @@ async function openMain() {
   await invokeDesktop('show_main_window')
 }
 
+async function openCanvas() {
+  menuOpen.value = false
+  await invokeDesktop('show_desktop_canvas')
+}
+
+async function openWidgetPicker() {
+  menuOpen.value = false
+  await invokeDesktop('show_canvas_widget_picker')
+}
+
 async function openToolResult(tool: Tool) {
   if (tool.id) void statsApi.recordClick(tool.id).catch(() => {})
-  const fallbackPath = tool.localPath || tool.local_path || undefined
-  if (tool.id || fallbackPath) {
+  const localPath = tool.localPath || tool.local_path || undefined
+  if (localPath) {
     try {
-      await toolsApi.openTool(tool.id || 0, fallbackPath)
-      recordToolUsage(tool)
-      usageRevision.value += 1
-      return
+      const opened = await openDesktopTool(tool)
+      if (opened) {
+        usageRevision.value += 1
+        return
+      }
     } catch {
-      // 后端不可用时回到完整 App 的同名搜索结果。
+      // 本地打开失败时回到完整 App 的同名搜索结果。
     }
   }
   localStorage.setItem('flexikit-pet-search', tool.name)

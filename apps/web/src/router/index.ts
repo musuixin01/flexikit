@@ -18,8 +18,22 @@ const routes: RouteRecordRaw[] = [
   { path: '/terms', name: 'Terms', component: () => import('@/views/Terms.vue') },
   { path: '/privacy', name: 'Privacy', component: () => import('@/views/Privacy.vue') },
   { path: '/data', name: 'DataManagement', component: () => import('@/views/DataManagement.vue') },
+  {
+    path: '/admin',
+    component: () => import('@/views/admin/AdminLayout.vue'),
+    children: [
+      { path: '', redirect: '/admin/overview' },
+      { path: 'overview', name: 'AdminOverview', component: () => import('@/views/admin/AdminOverview.vue') },
+      { path: 'users', name: 'AdminUsers', component: () => import('@/views/admin/AdminUsers.vue') },
+      { path: 'ai-usage', name: 'AdminAiUsage', component: () => import('@/views/admin/AdminAiUsage.vue') },
+    ],
+  },
   ...(isDesktop
-    ? [{ path: '/pet', name: 'Pet', component: () => import('@/views/Pet.vue') }]
+    ? [
+        { path: '/assistant', name: 'AiAssistant', component: () => import('@/views/AiAssistant.vue') },
+        { path: '/pet', name: 'Pet', component: () => import('@/views/Pet.vue') },
+        { path: '/canvas', name: 'DesktopCanvas', component: () => import('@/views/DesktopCanvas.vue') },
+      ]
     : []),
 ]
 

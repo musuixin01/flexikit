@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Favorite } from './favorite.entity';
@@ -15,16 +15,22 @@ export class FavoritesService {
   async getFavorites(userId: number): Promise<number[]> {
     const favs = await this.favoritesRepository.find({
       where: { user_id: userId },
-      select: ['tool_id'] as any,
+      select: { tool_id: true },
     });
     return favs.map(f => f.tool_id);
   }
 
   async addFavorite(userId: number, toolId: number): Promise<void> {
+    const tool = await this.toolsService.findOne(toolId);
+    if (tool.user_id !== null && tool.user_id !== userId) {
+      throw new ForbiddenException('Tool is not accessible');
+    }
+
     const existing = await this.favoritesRepository.findOne({
       where: { user_id: userId, tool_id: toolId },
     });
     if (existing) return;
+
     const fav = this.favoritesRepository.create({ user_id: userId, tool_id: toolId });
     await this.favoritesRepository.save(fav);
     // 收藏计数 +1
@@ -32,8 +38,13 @@ export class FavoritesService {
   }
 
   async removeFavorite(userId: number, toolId: number): Promise<void> {
-    await this.favoritesRepository.delete({ user_id: userId, tool_id: toolId });
-    // 收藏计数 -1
+    const existing = await this.favoritesRepository.findOne({
+      where: { user_id: userId, tool_id: toolId },
+    });
+    if (!existing) return;
+
+    await this.favoritesRepository.remove(existing);
+    // 只有真实删除收藏时才递减，避免重复取消导致负计数。
     await this.toolsService.incrementFavorite(toolId, -1);
   }
 

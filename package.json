@@ -4,13 +4,16 @@
   "private": true,
   "description": "FlexiKit - 企业级跨平台AI工具平台",
   "scripts": {
-    "dev:web": "pnpm --filter web dev",
-    "build:web": "pnpm --filter web build",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build:web": "npm --prefix apps/web run build",
     "dev:backend": "cd backend && npm run start:dev",
-    "build:backend": "cd backend && npm run build"
+    "build:backend": "cd backend && npm run build",
+    "dev:desktop": "npm --prefix apps/desktop run tauri -- dev",
+    "build:desktop": "npm --prefix apps/desktop run tauri -- build",
+    "release:check-version": "node scripts/check-desktop-version.mjs"
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "npm": ">=9.0.0"
   }
 }

@@ -1,15 +1,19 @@
-import api from './index';
+import api from './client';
+
+interface StatsMutationResponse {
+  success: boolean;
+}
 
 export const statsApi = {
   recordView: (toolId: number) =>
-    api.post('/stats/view', { toolId }),
+    api.post<StatsMutationResponse>('/stats/view', { toolId }),
 
   recordClick: (toolId: number) =>
-    api.post('/stats/click', { toolId }),
+    api.post<StatsMutationResponse>('/stats/click', { toolId }),
 
   recordSearch: (query: string) =>
-    api.post('/stats/search', { query }),
+    api.post<StatsMutationResponse>('/stats/search', { query }),
 
   recordFavorite: (toolId: number, isFav: boolean) =>
-    api.post('/stats/favorite', { toolId, isFav }),
+    api.post<StatsMutationResponse>('/stats/favorite', { toolId, isFav }),
 };

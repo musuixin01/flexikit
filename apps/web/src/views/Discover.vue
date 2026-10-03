@@ -53,6 +53,7 @@
               :key="tool.id"
               :tool="tool"
               mode="discovery"
+              :recommendation-reason="tool.recommendationReason"
               @click="handleToolClick(tool)"
               @add="handleAddTool"
             />
@@ -82,6 +83,9 @@
               </button>
             </div>
           </div>
+          <p v-if="rankFallbackMode" class="rank-fallback-note">
+            本地工具占位顺序，不代表热度排行
+          </p>
           <div class="rank-list">
             <div
               v-for="(tool, index) in rankList"
@@ -97,9 +101,9 @@
                 <div class="rank-name">{{ tool.name }}</div>
                 <div class="rank-desc">{{ tool.description || tool.desc || '' }}</div>
               </div>
-              <div class="rank-score">
+              <div v-if="!rankFallbackMode" class="rank-score">
                 <span class="score-fire">🔥</span>
-                <span class="score-value">{{ tool.hot_score || getFallbackScore(index) }}</span>
+                <span class="score-value">{{ formatHeatScore(tool.hot_score) }}</span>
               </div>
             </div>
             <!-- 空状态 -->
@@ -160,12 +164,16 @@ import ToolCard from '@/components/tools/ToolCard.vue';
 import ToolIcon from '@/components/tools/ToolIcon.vue';
 import ToolModal from '@/components/tools/ToolModal.vue';
 import ToastMessage from '@/components/common/ToastMessage.vue';
-import { discoveryApi, statsApi } from '@/api';
+import { discoveryApi, recommendationsApi, statsApi } from '@/api';
 import type { DiscoveryTool } from '@/api/discovery';
+import type { RecommendationExplanation } from '@/api/recommendations';
+import { backendToFrontend } from '@/api/toolMapper';
 import type { Tool } from '@/types/tool';
 import { useUiStore } from '@/stores/ui';
 import { useToolsStore } from '@/stores/tools';
 import { useUserStore } from '@/stores/user';
+import { readRecommendationBehaviorEvents } from '@/recommendations/behaviorEvents';
+import { rankToolsByTagMatch } from '@/recommendations/tagMatcher';
 
 const ui = useUiStore();
 const toolsStore = useToolsStore();
@@ -180,6 +188,7 @@ interface DiscoveryCardTool extends Tool {
   hot_score?: string | number;
   upvotes?: number;
   comments?: number;
+  recommendationReason?: string;
 }
 
 // 将发现工具转换为前端 Tool 格式
@@ -219,11 +228,54 @@ const rankPeriods = [
 const loading = ref(false);
 const recommendList = ref<DiscoveryCardTool[]>([]);
 const rankList = ref<DiscoveryCardTool[]>([]);
+const rankFallbackMode = ref(false);
 const latestList = ref<DiscoveryCardTool[]>([]);
 const lastUpdatedText = ref('等待刷新');
 const latestOffset = ref(0);
 const latestHasMore = ref(true);
 const PAGE_SIZE = 6;
+const RECOMMENDATION_CANDIDATE_POOL_SIZE = 18;
+
+function formatServerRecommendationReason(
+  explanation: Readonly<RecommendationExplanation>,
+): string {
+  if (explanation.kind === 'similar_favorite') {
+    const seedToolName = explanation.seedToolName?.trim();
+    return seedToolName
+      ? '与你收藏的「' + seedToolName + '」相似'
+      : '与你的收藏偏好相似';
+  }
+  return '基于公开热度补充推荐';
+}
+
+function formatLocalRecommendationReason(
+  matchedTag?: string,
+  matchedCategory?: string,
+): string | undefined {
+  if (matchedTag) return '本机偏好匹配：#' + matchedTag;
+  if (matchedCategory) return '本机偏好匹配：' + matchedCategory;
+  return undefined;
+}
+
+function personalizeRecommendationCandidates<T extends DiscoveryCardTool>(
+  candidates: readonly T[],
+): T[] {
+  const events = readRecommendationBehaviorEvents();
+  return rankToolsByTagMatch(candidates, toolsStore.allTools, events)
+    .map(item => {
+      const localReason = formatLocalRecommendationReason(
+        item.matchedTag,
+        item.matchedCategory,
+      );
+      if (!localReason) return item.tool;
+      return {
+        ...item.tool,
+        recommendationReason: item.tool.recommendationReason
+          ? localReason + ' · ' + item.tool.recommendationReason
+          : localReason,
+      };
+    });
+}
 
 // 平台筛选
 const currentSource = ref<string>('all');
@@ -275,18 +327,30 @@ function changeSource(source: string) {
 // 获取推荐
 async function fetchRecommend() {
   try {
+    if (currentSource.value === 'all' && user.isLoggedIn) {
+      const res = await recommendationsApi.getExplainedRecommendations(
+        RECOMMENDATION_CANDIDATE_POOL_SIZE,
+      );
+      const candidates = res.data.map(item => ({
+        ...(backendToFrontend(item.tool) as DiscoveryCardTool),
+        recommendationReason: formatServerRecommendationReason(item.explanation),
+      }));
+      recommendList.value = personalizeRecommendationCandidates(candidates).slice(0, PAGE_SIZE);
+      return;
+    }
+
     const source = currentSource.value === 'all' ? undefined : currentSource.value;
-    const res = await discoveryApi.getRecommendations(PAGE_SIZE, source);
+    const res = await discoveryApi.getRecommendations(RECOMMENDATION_CANDIDATE_POOL_SIZE, source);
     const data = res.data;
     const items = Array.isArray(data) ? data : (data.items || []);
-    recommendList.value = items.map((item: DiscoveryTool) => discoveryToTool(item));
+    const candidates = items.map((item: DiscoveryTool) => discoveryToTool(item));
+    recommendList.value = personalizeRecommendationCandidates(candidates).slice(0, PAGE_SIZE);
   } catch (e) {
-    // 后端不可用时，从本地工具中随机推荐
+    // 后端不可用时，用相同的本地标签匹配规则处理已加载工具。
     console.warn('推荐接口不可用，使用本地数据');
     const allTools = toolsStore.allTools;
     if (allTools.length > 0) {
-      const shuffled = [...allTools].sort(() => Math.random() - 0.5);
-      recommendList.value = shuffled.slice(0, PAGE_SIZE);
+      recommendList.value = personalizeRecommendationCandidates(allTools).slice(0, PAGE_SIZE);
     }
   }
 }
@@ -303,21 +367,18 @@ async function fetchRankings() {
       const tool = discoveryToTool(item);
       return { ...tool, hot_score: item.hot_score };
     });
+    rankFallbackMode.value = false;
   } catch (e) {
-    // 后端不可用时，从本地工具中生成模拟排行
-    console.warn('排行接口不可用，使用本地数据');
-    const allTools = toolsStore.allTools;
-    if (allTools.length > 0) {
-      rankList.value = allTools.slice(0, 10).map((tool, index) => ({
-        ...tool,
-        hot_score: getFallbackScore(index),
-      }));
-    }
+    console.warn('排行接口不可用，使用本地占位顺序');
+    rankFallbackMode.value = true;
+    rankList.value = [...toolsStore.allTools]
+      .sort((left, right) => left.name.localeCompare(right.name, 'zh-CN'))
+      .slice(0, 10)
+      .map(tool => ({ ...tool, hot_score: undefined }));
   } finally {
     loading.value = false;
   }
 }
-
 // 获取最新
 async function fetchLatest(reset = true) {
   if (reset) {
@@ -373,10 +434,10 @@ function viewAllLatest() {
   ui.showToast(`当前已展示 ${latestList.value.length} 个最新工具`);
 }
 
-function getFallbackScore(index: number): string {
-  return Math.max(2, 11.5 - index * 0.72).toFixed(1);
+function formatHeatScore(value: string | number | undefined): string {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed.toFixed(1) : '—';
 }
-
 // 排行名次样式
 function getRankClass(index: number) {
   if (index === 0) return 'rank-gold';
@@ -397,7 +458,7 @@ function scrollRight() {
 
 // 工具点击记录
 function handleToolClick(tool: DiscoveryCardTool) {
-  statsApi.recordClick(tool.id).catch(() => {});
+  if (tool.id !== undefined) statsApi.recordClick(tool.id).catch(() => {});
   if (tool.url && tool.url !== '#') {
     window.open(tool.url, '_blank');
   } else {
@@ -567,14 +628,21 @@ onMounted(async () => {
   min-width: 0;
 }
 .cards-scroll::-webkit-scrollbar {
-  height: 4px;
+  height: 8px;
 }
 .cards-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 .cards-scroll::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, rgba(0,0,0,0.15));
-  border-radius: 4px;
+  background: color-mix(in srgb, var(--text-primary) 14%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+.cards-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-primary) 28%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 .cards-scroll .tool-card {
   flex: 0 0 280px;
@@ -664,6 +732,12 @@ onMounted(async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.rank-fallback-note {
+  margin: -4px 0 10px;
+  color: var(--text-tertiary);
+  font-size: .7rem;
+  line-height: 1.5;
 }
 .rank-score {
   display: flex;

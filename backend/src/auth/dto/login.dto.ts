@@ -1,6 +1,7 @@
 import { IsString, MinLength } from 'class-validator';
+import { AuthClientContextDto } from './auth-client-context.dto';
 
-export class LoginDto {
+export class LoginDto extends AuthClientContextDto {
   @IsString()
   username: string;
 

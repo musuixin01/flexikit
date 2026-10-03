@@ -763,8 +763,12 @@ dependencies = [
 name = "flexikit-desktop"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "indexmap 1.9.3",
+ "png 0.17.16",
  "tauri",
  "tauri-build",
+ "windows",
 ]
 
 [[package]]

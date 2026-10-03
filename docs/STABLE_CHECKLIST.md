@@ -1,0 +1,148 @@
+# FlexiKit v0.1 Stable Checklist
+
+## 构建验证
+
+- [x] Web TypeScript / Vue SFC 严格类型检查通过（2026-09-23，`npm ci` 恢复 vue-tsc 2.2.12 + TypeScript 5.9.3）
+- [x] Web `npm run build` 完整链路通过（`vue-tsc && vite build`）
+- [x] Web production Vite 构建通过（2026-09-23，Vite 5.4.21，214 modules）
+- [x] Web desktop mode Vite 构建通过（2026-09-23，Vite 5.4.21，214 modules）
+- [x] Backend NestJS 编译通过（2026-09-23）
+- [x] Tauri Rust `cargo check --all-targets` 通过（2026-09-23，使用 `D:\\DevTools\\VisualStudio\\2022\\BuildTools` x64 开发环境）
+- [x] Tauri release bundle / 安装包构建验证（2026-09-23：optimized release + x64 MSI/NSIS；Vite 关闭时 release 与隔离安装版均完整渲染 44 个工具；NSIS 卸载清理通过）
+- [x] NSIS 覆盖升级验证（2026-09-23：独立 `com.flexikit.s2upgrade` 0.1.0 → 0.1.1，同目录覆盖、exe SHA-256 变化、单一卸载项更新到 0.1.1、升级后主窗口正常启动）
+- [x] 升级用户数据保留（0.1.0 `S2 Upgrade Sentinel` 自定义工具在 0.1.1 覆盖后仍可由 UIA 读取；总工具数 45 = Backend 44 + Sentinel 1）
+- [x] Desktop 发布版本一致性门禁（`npm run release:check-version` 校验 package/package-lock/Tauri/Cargo/Cargo.lock，当前 0.1.0 通过）
+- [x] Desktop 本地诊断日志（release 实测写入 startup + setup_complete；2 MB 轮转、最多 3 个备份，不自动上传）
+- [x] 自动更新架构方案（签名 Tauri updater + HTTPS manifest + Stable/Beta + 用户确认；v0.1 在线更新保持关闭直到端点/密钥/失败回归就绪）
+- [x] Desktop 离线冷启动视觉回归（Backend 3001 / Vite 5173 均关闭；窗口出现约 5.2 秒时截图已完整显示 44 个工具；UIA 树晚到不视为视觉首屏延迟）
+- [~] 真实干净 Windows 安装回归（自动脚本 `scripts/windows-clean-install-smoke.ps1` 已完成并通过 PowerShell AST 语法检查；当前主机无现成 VM/ISO，Sandbox Disabled，待真实干净客体环境执行）
+- [x] Docker Compose 配置校验通过
+- [x] Docker runtime / 容器启动验证（Docker Desktop Engine 恢复；既有 `flexikit-postgres` / `flexikit-redis` 容器运行，5433 / 6379 映射正常）
+- [x] Backend migration 可重复执行（两次启动前后 `migrations` 表记录数保持 1，无重复迁移/Schema 异常）
+- [x] Backend 端口统一为 3001（start.bat、Dockerfile.dev、DEPLOY、README/API/Vite 基线一致）
+- [x] S4.1 Backend 统一错误处理基线（Global Filter + 稳定 machine `code` + Validation `details[]` + 未知 500 脱敏；400/401/403/404 等 HttpException 自动映射，Web client 向后兼容；`test:error-regression` 全通过，Backend build + Web 238 modules 通过；favicon 空 404 明确为二进制探测特例）
+- [x] S4.1 Backend 统一成功响应基线（全局 `{code:0,message:'success',data}` envelope；`@RawResponse()` 显式绕过二进制端点；Web Axios 自动解包保持业务 `response.data` 兼容；response + error regression、Backend build、Web 238 modules 及独立 3011 真实 HTTP 烟测全部通过）
+- [x] S4.1 Controller / Service 类型治理基线（共享 Authenticated/Optional Request；Discovery Query DTO；RSS `RssFeedItem` + V2EX `unknown` type guard；Favorites/HttpService 去除残余 any；`test:type-audit`=explicit_any 0 / untyped Request 0 / untyped whole Query 0；Backend build、S4.1 regressions、Web 238 modules、独立 3012 HTTP 行为烟测通过）
+- [x] S4.1 HTTP 日志基线（全局 requestId + `X-Request-Id` 回传/CORS 暴露；结构化 request/error 日志、duration/outcome、userId 可选、IP 脱敏、UA 清洗截断；不记录 body/query/auth/cookie；4xx warn、5xx internal stack；logging/error/response/type 回归 + 独立 3013 真实日志烟测通过）
+- [x] S4.1 API Versioning V1 基线（Nest URI versioning；Backend `/v1/*` / Web `/api/v1/*` 为正式入口；`VERSION_NEUTRAL + 1` 保留旧路径兼容；Web/Desktop Client 默认 V1；`/v2` 当前 404；versioning + 既有 S4.1 regressions、Web 238 modules、3014 live compatibility smoke 通过）
+- [x] S4.2 Access Token 生命周期基线（默认 `ACCESS_TOKEN_TTL=30m`，60 秒–30 天 Fail Fast；Bearer + expires_in/expires_at；新 JWT `token_use=access`，显式 refresh token 被 Access Strategy 拒绝且旧无 token_use JWT 暂兼容；Web 初始化/请求前/timer/focus 主动过期；Backend/Web build、Access + S4.1 regressions、3015 live lifecycle smoke 通过，测试账号已清理）
+- [x] S4.2 Refresh Token 基线（opaque sessionId.secret；DB 仅 SHA-256、默认 30d；`refresh_sessions` migration + CASCADE；事务行锁 rotation、绝对 expiry、reuse detection/revoke；Web sessionStorage + Axios single-flight refresh/one retry；Backend/Access/Refresh/S4.1 regressions、Web 240 modules、真实 3016 PostgreSQL smoke 与 migration idempotency 通过）
+- [x] S4.2 Windows Desktop Token 安全存储基线（DPAPI Current User + 固定 access/refresh Tauri IPC；app-local vault 仅密文、原子替换、输入大小/格式防御；Desktop Web Storage 明文自动迁移并删除；Rust fmt/check/test/build 通过 17/17，含真实 DPAPI 磁盘无明文 round-trip；Web 240 modules、Access/Refresh regressions 与 Desktop setup_complete smoke 通过）
+- [x] S4.2 多端登录策略基线（每次登录独立 Refresh Session；client_type/instance UUID/name 元数据 + 显式 session_id；旧客户端 unknown/null 兼容；Refresh 只轮换当前 Session 且不修改其他端；multi-client regression + 3017 PostgreSQL 三 Session 并存烟测、3015/3016 既有 live smoke、S4.1 regressions、Web 241 modules 与 migration idempotency 全通过）
+- [x] S4.2 设备管理基线（Access JWT `sid` 服务端标识当前 Session；GET sessions 仅暴露有效 Session 安全元数据，DELETE session 只能撤销其他会话且拒绝当前/旧无 sid 上下文；Profile 账户页登录设备 UI；device regression + 3018 PostgreSQL smoke、既有 Access/Refresh/Multi-client/S4.1 regressions 与 live smoke、Web 244 modules 全通过；后续 logout/revocation 已补齐被撤 Session 的 Access 即时 401）
+- [x] S4.2 登出 / 即时吊销基线（`POST /auth/logout` + sid Session authority；JwtStrategy 对 sid-bound Access 每次校验 Session active，logout/device-revoke/replay 后旧 Access 与 Refresh 立即 401；sid-less 旧 Access 支持 Refresh-secret logout 迁移兜底；Web/Desktop server-first + local-finally logout；logout regression + 3019 live、更新后的 3018/3016 live、Web 244 modules 全通过）
+- [x] S4.3 本地敏感数据分类基线（L0–L3；真实扫描 Web Storage / Desktop vault / diagnostics；Canvas Notes/Todo/Folder path、Global Search recents、Installed App/Tool usage、Profile cache 均完成分类；确认无 IndexedDB/local SQLite/password cache；记录 clear/delete/account-vs-device scope 缺口，详见 `docs/LOCAL_DATA_SECURITY_CLASSIFICATION.md`）
+- [x] S4.3 Secret / Token 存储基线（Windows Desktop DPAPI 保持不变；Browser Access memory-only + Refresh HttpOnly/SameSite=Strict Cookie，生产 Secure；cookie mode JSON 无 refresh_token；旧 Browser Web Storage Token 一次性迁移清理；single-flight + Web Locks 防多标签 rotation 竞态；3020 live + 3016 legacy body-flow + Backend/Web build + Secret Web Storage 静态审计通过，Web 245 modules）
+- [x] S4.3 本地数据备份基线（版本化 V1 + AES-GCM-256 / PBKDF2-SHA-256 250k；固定 L0–L2 allowlist，L3 Token/Session/DPAPI/client identity/consent/diagnostics 明确排除；稳定 user-id 账号绑定；恢复前校验 + 完整快照语义 + 写失败回滚；DataManagement 服务器导出与本地备份分流；local-backup regression 全通过，Web strict build 246 modules）
+- [x] S4.3 数据迁移版本管理基线（`flexikit-local-data-schema-version` 当前 v1；启动前集中 registry 执行逐版本迁移；v0→v1 将 Canvas v1→v2，合法 v2 优先且 stale v1 清除；幂等、未来版本降级保护、损坏数据保留、写失败回滚；备份 localDataSchemaVersion/旧 V1 恢复复用同一迁移链；工具导入 legacy→1.0 且未来版本拒绝；migration + backup regressions 与 Web 247 modules 全通过）
+- [x] S4.3 隐私设置基线（设备级 `flexikit-privacy-preferences-v1`；搜索最近项、Tool/App usage personalization、资料本地缓存三项真实门控；关闭即删除对应历史并阻止后续读写；支持独立清除活动；隐私偏好不上传/不备份；Canvas 用户内容与 tracking 分离；Cookie 提示与政策收敛为必要 HttpOnly Refresh Cookie、无分析 Cookie；privacy + backup regression、Web 249 modules 通过）
+- [x] S4.3 数据导出 / 删除基线（服务器导出改为 versioned 显式安全字段白名单，不暴露 password/token hash/secret/embedding；账户删除要求精确 DELETE 确认并使用事务 + 用户行锁，维护 surviving Tool 收藏计数并删除业务数据/Refresh Sessions；当前设备本地用户数据按 allowlist 完整清理且 Canvas 跨窗口防旧内容回写，主题/布局/隐私偏好/client instance 保留；Backend/Web lifecycle regressions、privacy/backup/migration regressions、Backend build、Web strict build 250 modules、3021 PostgreSQL HTTP live smoke 与 Browser Cookie live smoke 全通过）
+- [x] S5.1 AI Provider 抽象基线（统一 Provider request/response contract + Registry + deterministic Model Router + AiService/AiController/AiModule；注册时校验 provider/model/default model 并拒绝重复；无 Provider/Provider 不存在/Model 不存在 typed fail-closed；GET /v1/ai/providers 受 JWT 保护；当前无真实 Provider/API Key/外部 AI 网络调用；Backend build、Provider regression、type-audit、3022 HTTP mount smoke 全通过）
+- [x] S5.1 OpenAI Provider 基线（官方 Responses API；OPENAI_API_KEY 存在才注册；GPT-6 Astra/Sol/Luna，默认 gpt-6-sol 且 OPENAI_MODEL 可覆盖；store=false；安全聚合 raw output_text；max_output_tokens 映射；认证/限流/超时/5xx/失败响应/无效响应 typed + 脱敏；Backend build、OpenAI Provider regression、原 Provider regression、type-audit 全通过；无用户凭据故未执行外网 live）
+- [x] S5.1 Gemini Provider 基线（官方 v1beta models.generateContent；GEMINI_API_KEY 存在才注册；默认 gemini-3.8-flash，同时提供 3.5 Flash / Flash-Lite，GEMINI_MODEL 可覆盖；systemInstruction + user/model 历史角色映射；temperature/maxOutputTokens generationConfig；store=false；prompt/candidate safety 归一化 content_filter；认证/限流/超时/5xx/无效响应 typed + 脱敏；Backend build、Gemini/OpenAI/Provider regressions、type-audit 全通过；无用户凭据故未执行外网 live）
+- [x] S5.1 Claude / Anthropic Provider 基线（官方 Messages API POST /v1/messages；ANTHROPIC_API_KEY 存在才注册；默认 claude-sonnet-5，同时提供 Opus 5 / Fable 5 / Haiku 4.5，ANTHROPIC_MODEL 可覆盖；x-api-key + anthropic-version 2023-06-01；system 顶层映射、user/assistant 历史映射、max_tokens 缺省 4096；adapter 当前显式拒绝 temperature，模型能力标签单独记录各 Claude 模型的 native sampling/thinking 差异；最终 assistant prefill fail-closed；text block 聚合与 refusal/context-window stop reason 归一化；认证/限流/超时/5xx/无效响应 typed + 脱敏；Backend build、Anthropic/OpenAI/Gemini/Provider regressions、type-audit 全通过；无用户凭据故未执行外网 live）
+- [x] S5.1 BYOK 安全基线（OpenAI/Gemini/Anthropic；Desktop 独立 Windows DPAPI Current User Vault，固定 Provider 槽位、原子密文落盘；Browser 运行期内存 only；账户页只显示配置状态，不回显原文；Backend 按请求创建临时 Provider，不入 Registry/数据库/响应/catalog；GET /v1/ai/byok/providers 只返回安全模型元数据；DPAPI 4/4 真机测试验证磁盘无明文 Key，Backend/Web build、BYOK backend/storage、三家 Provider、通用 Provider、type-audit、cargo fmt/check 全通过）
+- [x] S5.1 模型能力标签基线（AiModelDefinition 统一 native/adapter 双层 capability profile；8 个能力键覆盖文本、视觉、流式、工具、结构化输出、推理控制、temperature、maxOutputTokens；native 支持 supported/conditional/unsupported/unknown，reasoningControls 支持 effort/thinking-level/manual-budget；三家内置模型按官方文档标注，自定义模型 native fail-safe=unknown；Registry 强校验并深拷贝 nested metadata，普通/BYOK catalog 同源；Backend build、model-capabilities/Provider/OpenAI/Gemini/Anthropic/BYOK regressions、type-audit 全通过）
+- [x] S5.1 成本 / Token 统计（OpenAI Responses / Gemini usageMetadata / Anthropic Messages Provider-reported usage 统一归一化；ai_usage_events 仅存安全运营元数据；平台/BYOK 分账；版本化官方价格目录 + pico-USD 精确计算；OpenAI 长上下文、Gemini 3.8 价格有效期、Anthropic cache-read/cache-write 分类；未知/过期定价 fail-closed=unpriced；三段增量迁移已落库（含 usage.user_id ON DELETE SET NULL 去关联）；真实 PostgreSQL 写入/聚合/ROLLBACK、Backend/Web build、Provider/BYOK/model-capabilities/AI-usage/Admin/type-audit 全通过）
+- [x] S5.1 超时 / 重试 / fallback（AiResiliencePolicy；Provider AbortSignal 真取消；默认 attempt=60s / total=90s / maxAttempts=3；Retry-After 优先、指数退避+jitter；仅瞬时错误重试；隐式平台路由才允许按 Registry 顺序 fallback；显式 Provider/Model 与 BYOK 禁止跨 Provider；OpenAI credit/spend/usage-limit 429 fail-closed 不重试；失败尝试不写 usage，最终成功只记一次；Backend build + resilience/OpenAI/Provider/Gemini/Anthropic/BYOK/model-capabilities/AI-usage/Admin regressions 全通过）
+- [x] S5.2 原生桌面 AI 助手（Desktop /assistant + Sidebar 入口；JWT POST /v1/ai/assistant/generate；平台自动路由/显式 Provider/Model；OpenAI/Gemini/Anthropic BYOK 单次临时凭据；复用 S5.1 usage/retry/fallback；Prompt/Response 不入 usage ledger/数据库；页面消息 Vue 内存 only，刷新清空；Backend/Web build、S5.2 Backend/Web、BYOK、resilience、type-audit 全通过）
+- [x] S5.2 当前工具上下文（最近一次由用户明确成功打开的 FlexiKit Tool；runtime memory only；openDesktopTool/ToolCard/Pet 成功路径同源；Assistant 可见且可关闭；请求仅 id/name/category/kind/hostname；本地路径不进入类型/DTO/system metadata；Backend 将 metadata 标记为 untrusted descriptive data；Backend/Web build、assistant/BYOK/resilience/type-audit 全通过）
+- [x] S5.2 当前文件上下文（用户授权）（Windows 原生 IFileOpenDialog；仅用户主动选择后读取单文件；UTF-8 文本扩展名白名单 + 32 KiB UTF-8 字节限制 + binary/control-char 拒绝；明确拒绝 env/pem/key/exe/pdf；Tauri 只返回 basename/extension/content，不返回绝对路径；Assistant 内存 only、可更换/移除/逐次关闭；Backend DTO/Service 双重校验，正文保持 user-role + untrusted-data guard；Backend/Web build、assistant/type-audit、cargo fmt、Rust 3/3 tests 全通过）
+- [x] S5.2 Clipboard 按需上下文（仅显式“读取剪贴板”按钮触发 get_clipboard_text；无 mount/focus/send 自动读取、无 polling/listener；Vue runtime memory only；16 KiB UTF-8 字节 + control-char 双端限制；可重新读取/移除/逐次关闭；Backend 正文保持 user-role + untrusted-data guard；不进数据库/log/usage；Backend/Web build、assistant/BYOK/resilience/type-audit 全通过）
+- [x] S5.2 Prompt 历史隐私策略（session-only；client/server persistence disabled；刷新/关闭清空；Assistant/DataManagement 明示“仅本次会话”；手动清空本次对话；工具/文件/Clipboard 附件历史 excluded；加密备份 excluded；预留 history key 仅作防御性清理；未来本机历史必须独立显式 opt-in；history/Web build/assistant/privacy/data-lifecycle regressions 全通过）
+- [x] S5.2 快捷操作（4 个本地静态 Prompt 模板；上下文型仅在已有且启用的工具/文件/Clipboard 上下文时可用；点击仅填入/合并 composer 并聚焦，绝不自动 Send、不读新文件/Clipboard、不触发 Backend/analytics、不持久化；最终显式发送继续走既有 Provider/BYOK/resilience/usage；Web build、assistant/history regressions 全通过）
+- [x] S5.3 用户行为事件（device-local only；复用 usagePersonalization；tool_open/favorite_add/favorite_remove；仅 toolId/type/timestamp；400 条上限、读写时淘汰 90 天前事件；不上传 Backend、不进入服务器导出或加密备份；关闭个性化/清除活动/清除本地数据均删除；Web build + recommendation-behavior/privacy/data-lifecycle/local-backup regressions 全通过）
+- [x] S5.3 标签匹配（device-local behavior + loaded Tool tags/category；tool_open=1、favorite_add=4、favorite_remove=-4；Tag×2/Category×1；单特征 clamp ±24；NFKC/case/whitespace 归一化；同分稳定保持候选原顺序；Discover 候选池 18→本地匹配→展示 6；fallback 同规则且无随机；不影响热门排行；tag/behavior regression + Web build 全通过）
+- [x] S5.3 热度排序（公开 upvotes/comments + freshness only；engagement 55 分、comments×4、scale=5000；freshness 45 分、14 天半衰期；0…100 clamp；findAll hot/recommendations/rankings PostgreSQL 动态排序 + response 同公式回填；ingest 清洗聚合量且不信任上游 static hot_score；不读取 device-local 行为；Backend build + discovery-heat regression + type-audit 全通过；PostgreSQL live smoke 因 Runner EACCES 环境限制未执行 SQL）
+- [x] S5.3 Embedding Pipeline（public Tool only，user_id IS NULL；OpenAI text-embedding-3-small / 1536d；canonical source ≤8,000 UTF-8 bytes、仅 hostname 不含 URL/local path；provenance + source SHA-256 + timestamptz；legacy vector reset；select:false provenance 显式 hydration；batch≤32、sync 默认100/上限500；pessimistic lock + source recheck；Provider model/index/dimension/finite/usage fail-closed；Provider-reported tokens 进入 AI Usage/成本；仅显式 embedding:sync，不自动产生外部费用；Backend build + embedding/AI-usage regressions + type-audit 全通过；Runner localhost:5433 EACCES/ECONNREFUSED，migration:show/run 未执行）
+- [x] S5.3 pgvector（ToolVectorSearchService；PostgreSQL <=> cosine exact search + SQL-side 1-distance similarity；1536d vector/limit/exclude ids 校验并参数化；public Tool only；embedding non-null + current provider/model/dimensions/source-version + source hash/updated-at；embedding_updated_at >= updated_at stale guard；stable id tie-break；no in-memory vector math；当前无 HNSW/IVFFlat，待真实 EXPLAIN/latency 证据后再评估 ANN；Backend build + pgvector/embedding regressions + type-audit 全通过）
+- [x] S5.3 相似工具推荐（最近最多 3 个公开收藏为 semantic seeds；复用 ToolVectorSearchService exact cosine；best-similarity + seed/candidate rank + Tool id deterministic merge；全部收藏最终排除；vector failure/shortfall → favorite-safe public popular fallback；匿名/无收藏保持 popular fallback；Discover 登录+全部来源接 /recommendations，source filter/匿名保留 Discovery path，device-local tag matcher 只在客户端重排；不返回 embedding/provenance/similarity；Backend/Web build + similar/pgvector/tag/heat UI regressions + type-audit 全通过）
+- [x] S5.3 推荐解释（/recommendations/explained 与原 Tool[] 接口并存；服务端仅 similar_favorite/popular + 可选公开收藏种子名称；不返回 cosine/similarity/embedding/provenance/internal ranks/confidence；Discover 本机合并 strongest tag/category affinity 原因且行为不上云；ToolCard discovery-only 单行解释；popular fallback 明示且不伪造热度；Backend/Web build、Web explanation/tag/heat UI、Backend similar/pgvector/type-audit 全通过）
+- [x] Admin Console V1（Overview / Users / AI Usage & Cost；users.role=user/admin + users.status=active/suspended 持久化；ADMIN_USER_IDS 仅作 bootstrap/recovery；暂停账号事务化撤销 Refresh Sessions；普通管理员可管理/删除普通用户，bootstrap-admin 才可管理管理员角色；禁止自停用、自降权、自删除和直接删除管理员；删除用户名二次确认 + 事务清理 + append-only 审计；AI Usage 已展示真实 Provider Token、平台/BYOK 分账、成本估算与未定价保护；安全字段继续排除 password hash / Token hash / BYOK Key / Prompt / Response / 本地内容）
+
+## 核心流程
+
+- [x] 用户注册/登录（真实 HTTP API 回归：注册 201、正确登录 200、错误密码/删除账号后 401）
+- [x] 用户资料修改（GET/PUT 真实回归，未暴露 `password_hash`）
+- [x] 工具创建、编辑、删除（真实 PostgreSQL 集成回归）
+- [x] 工具搜索与分类（描述/tags 搜索、分类创建/编辑/过滤通过）
+- [x] 收藏功能（添加、列表、favorite 过滤、移除通过）
+- [x] Discovery 页面加载（5 条 API + Tauri WebView 页面实测）
+- [x] 本地工具启动流程（真实 UI 添加 Notepad 后点击启动，确认进程出现；测试工具/进程已清理）
+- [x] Desktop Canvas 实际窗口回归（Stage 1 S1.8/S1.9 完整验收已通过）
+- [x] S3.1 全局搜索基线（`Ctrl+Shift+Space` 原生全局快捷键、FlexiKit 工具/本地应用/文件/文件夹统一检索、最近使用、结果排序、↑↓/Enter/Esc 键盘操作、90ms 防抖 + 120 秒原生索引缓存；Web strict build、Rust check/build 和真实快捷键注册/触发日志均通过）
+- [x] S3.2 已安装软件自动发现基线（HKCU/HKLM 32/64 位卸载注册表 + Start Menu + Store/MSIX PackageManager，系统组件/更新/Framework/资源包过滤、名称去重、5 分钟本地缓存；真实 Desktop 启动发现 537 条；Web strict build、rustfmt、Rust check/build 全部通过）
+- [x] S3.2 软件图标读取基线（Registry `DisplayIcon`、Start Menu Windows Shell、Store/MSIX Package Logo；按需读取 + 本地内存缓存，Shell HICON 转 64×64 PNG/Data URL；真实已安装软件图标测试 2/2 通过，Web strict build、rustfmt、Rust check/test/build 全部通过）
+- [x] S3.2 软件路径解析基线（Start Menu `.lnk` ShellLink 目标/参数、直接 EXE/URL、Store/MSIX AUMID、Registry 现存 EXE 保守兜底；按来源优先级合并，陈旧快捷方式目标拒绝；真实已安装软件路径测试通过，Rust 3/3 tests + Web strict build + debug build 全部通过）
+- [x] S3.2 Launcher 自动推荐基线（可启动本地软件最多 12 项；来源可靠性 + FlexiKit 启动频率/时间 + 全局搜索最近应用综合排序，噪声软件降权；展示项图标惰性加载，手动整理后固定顺序；原生命令按软件名二次校验目标再启动；Web 222 modules、Rust 4/4 tests、debug build 与真实 Desktop 启动均通过）
+- [x] S3.2 Launcher 手动增删基线（统一应用库展示可启动本地软件与 FlexiKit 工具；分类/搜索、`+ / ✓` 加入移除、整理模式 `−` 删除、拖拽排序；`launcherPinnedKeys` 无固定数量上限并随 Canvas Widget 配置持久化；Web 222 modules、Rust 4/4 tests、debug build 与 Desktop 启动烟测通过）
+- [x] S3.2 软件失效路径检测基线（启动挂载强制刷新 + 60 秒后重新打开 Launcher 时刷新；失效/卸载的固定软件显示禁用占位并保留手动移除入口，应用库/自动推荐排除失效项；启动失败立即强制刷新；Web 222 modules、Rust 4/4 tests、debug build 与 Desktop 烟测通过）
+- [x] S3.3 Desktop Organizer Known Folder 基线（用户桌面 + 公共桌面改用 `SHGetKnownFolderPath(FOLDERID_Desktop/PublicDesktop)`，读取与 `open_desktop_item` 路径校验共享同一根目录；真实 Known Folder 测试通过，Rust 5/5 tests + debug build + Desktop 启动烟测通过）
+- [x] S3.3 Desktop Organizer 真实图标基线（桌面文件/文件夹/快捷方式/EXE 使用 Windows Shell 真实图标，HICON 转 64×64 PNG；canonical `\\?\` 路径在 Shell 边界归一化，SHGFI_USEFILEATTRIBUTES 兜底；命令先做 Known Folder 路径校验，前端按路径缓存；Web 222 modules、Rust 6/6 tests、debug build 与 Desktop 烟测通过）
+- [x] S3.3 Desktop Organizer 分类规则配置基线（默认分类可重命名/编辑扩展名；自定义分类可新增删除；同一扩展名自动转移归属、可恢复默认；规则保存在 Widget config，仅改变显示分组不操作真实文件；Web 222 modules、Rust 6/6 tests、debug build 与 Desktop 启动烟测通过）
+- [x] S3.3 Desktop Organizer 常用置顶基线（桌面项目 `☆ / ★` 星标；置顶后进入顶部常用分组且不与原分类重复，取消后自动回归；最近置顶优先、最多 80 项，完整路径随 Widget config 持久化；Web 222 modules、Rust 6/6 tests、debug build 与 Desktop 启动烟测通过）
+- [x] S3.3 Desktop Organizer 最近文件基线（Known Folder 桌面文件元数据 `modifiedAt`；最多 6 个未置顶文件按修改时间降序，显示相对时间；不读 Windows 全局 MRU/UserAssist/RecentDocs，常用/最近/分类三层去重；Web 222 modules、Rust 7/7 tests、debug build 与 Desktop 启动烟测通过）
+- [x] S3.3 Desktop Organizer 文件夹快速展开基线（桌面文件夹显式 `›` / 双击进入 Organizer 内预览，支持子目录进入、返回、关闭与 Esc；Known Folder 边界二次校验，隐藏/系统项过滤，单次扫描≤512、返回≤30，子项真实图标；Web 222 modules、Rust 9/9 tests、debug build 与有界 Desktop 烟测通过）
+- [x] S3.3 Desktop Organizer 搜索基线（180ms 防抖；文件名精确/前缀/包含 + 扩展名匹配；仅 Desktop/PublicDesktop Known Folder，递归深度≤4、扫描≤5000、结果≤60，隐藏/系统项过滤；结果可打开/展开且复用真实图标；Web 222 modules、Rust 11/11 tests、debug build 与有界 Desktop 烟测通过）
+- [x] S3.3 Desktop Organizer 不修改用户文件安全基线（原生 Organizer 模块无 rename/remove/copy；前端仅调用读取/搜索/图标/预览/受控打开五类命令，所有路径仍受 Known Folder 校验；机器审计退出 0；全项目仅 diagnostics 日志轮转存在 rename/remove，与用户文件无关）
+- [x] S3.4 Calendar Widget 基线（纯本地 6×7 月历；今天高亮、日期选择、月切换/回到今天；Registry 支持周一/周日起始与相邻月份显示开关；不联网、不读取系统日历/账户；Web 225 modules、Rust 11/11 tests、debug build 与有界 Desktop 烟测通过）
+- [x] S3.4 Folder Widget 基线（从 Desktop/PublicDesktop 顶层文件夹选择并固定，根路径随 Widget config 持久化；支持子目录进入/返回/刷新、真实图标、文件双击打开；失效根保留意图并可重新选择；仅复用四个 Known Folder 受控命令；Web 228 modules、Rust 11/11 tests、debug build、有界 Desktop 烟测与安全审计通过）
+- [x] S3.4 System Monitor Widget 基线（Windows `GetSystemTimes` + `GlobalMemoryStatusEx` + `GetTickCount64` + 现有系统盘统计；前端 CPU 差分、18 点历史、内存/磁盘/开机时长；2/5/10 秒刷新与磁盘显示配置；无新第三方依赖/后台线程；Web 231 modules、Rust 13/13 tests、debug build 与有界 Desktop 烟测通过）
+- [x] S3.4 Notes Widget 基线（多实例独立纯文本便签；标题≤40、正文≤12000，450ms 防抖自动保存 + 完成/失焦/卸载 flush，最近编辑时间与 3 秒二次确认清空；仅当前 Widget config + Canvas localStorage，不联网/无原生命令；Web 234 modules、Rust 13/13 tests、debug build、有界 Desktop 烟测与本地安全审计通过）
+- [x] S3.4 Weather Widget 基线（手动城市后才联网，无系统/GPS/IP 自动定位；Open-Meteo 当前天气 + 4 日预报，摄氏/华氏与预报开关；30 分钟周期、5 分钟聚焦 freshness gate、10 秒超时、运行期坐标缓存；固定双域名/CORS/真实 API 烟测通过；Web 237 modules、Rust 13/13 tests、最终 Desktop rebuild 与有界烟测通过；商业发布前必须完成天气 API 商业授权或自托管切换）
+- [x] S3.4 Widget Plugin API V1 基线（统一 Plugin Manifest：ID/SemVer/API version/source/instance policy/permissions/network origins/native commands；Registry Fail Fast 校验与重复 type 拒绝；14 个内置 Widget 权限元数据迁移；Desktop Organizer single-instance 生效；明确 V1 不动态执行远程/第三方 JS；Web 238 modules、Rust 13/13 tests 通过）
+- [x] S3.4 Widget Config Schema V2 基线（新增 number/color/section + `visibleWhen`，兼容 boolean/select/range/text；Inspector 自动生成分组/数字/颜色 UI 和条件显示；注册严格校验 key/select/numeric/text/color/condition，运行时统一归一化；Weather 1–4 天预报与 Notes 强调色完成真实接入；Web 238 modules、Rust 13/13、debug build 与有界 Desktop 烟测通过）
+- [ ] Widget 组合回归（Shift 多选、组合、联动移动、整组锁定、拆分、持久化）
+- [ ] 外观 Inspector 回归（名称、透明度、圆角、模糊、批量修改）
+- [ ] Launcher 三级展开回归（快速启动中心、Launchpad 搜索/分类、Esc/关闭、展开后原生穿透区域恢复）
+- [ ] Launcher 常用应用回归（添加、移除、数量不限、拖拽排序、重启后顺序持久化）
+- [ ] Todo Widget 回归（新增、完成、删除、清理完成项、重启持久化）
+- [ ] Clipboard Widget 回归（主动读取、写入、清空显示、不后台采集、不持久化文本）
+- [ ] Music Widget 回归（GSMTC 歌名/歌手/专辑、播放状态、进度/总时长、上一首、播放/暂停、下一首、停止）
+- [ ] Music 专辑封面回归（GSMTC Thumbnail、无封面回退、切歌自动更新、4 MB 上限、内存缓存、不持久化）
+- [ ] Music 歌词回归（默认不联网、主动开启后匹配 LRCLIB、同步歌词逐行高亮、普通歌词降级、切歌重新匹配、关闭后清空内存歌词）
+- [ ] Music 歌词容错回归（LRCLIB 404 / 429 / 5xx / 超时：一次重试、exact → search 降级、媒体控制保持可用）
+- [ ] Music 隐私回归（歌词正文和当前歌曲元数据不写入 Canvas localStorage，仅持久化 `musicLyricsEnabled` 用户选择）
+- [ ] AI Prompt Widget 回归（AI 工具选择持久化、Prompt 不持久化、复制并打开）
+- [x] Windows 桌面父层烟测（当前 Win11：Canvas HWND 父窗口已验证为 `Progman / Program Manager`）
+- [x] Windows Canvas 原生交互区域烟测（普通模式 `GetWindowRgnBox` 已验证为 `RGN_KIND=3` Complex Region，不再使用 45ms 全窗口穿透轮询）
+- [x] Explorer 桌面层自动恢复机制（1.5 秒低频父层/尺寸 watchdog；父层失效后自动 reattach、恢复 HRGN 并触发 Region 重算；空闲多周期烟测通过）
+- [x] 多显示器 / DPI 布局底座（Monitor API、`monitorId`、v2 持久化、v1 自动迁移、拓扑变化重映射；当前单屏运行态烟测通过）
+- [ ] 真实双屏 / 混合 DPI 回归（跨屏拖动、指定显示器迁移、热插拔、主屏切换、不同缩放比例）
+- [x] Widget 外观 V2 数据/构建基线（旧布局兼容、完整默认值、预设/自定义持久化、Vue strict typecheck、Desktop build）
+- [ ] Widget 外观 V2 视觉回归（四预设、深/浅/跟随色调、批量修改、重启后持久化、小屏 Inspector 滚动）
+- [x] Registry 驱动 Widget 配置基线（boolean/select/range/text、默认值解析、恢复默认、内部数据隔离、Vue strict typecheck、Desktop build）
+- [ ] Widget 配置 GUI 回归（Clock / Search / Todo / Music 实时修改、恢复默认、重启后持久化、Music 双入口同步）
+- [x] 20px 栅格 / 自动整理 / 新增 Widget 空位布局构建基线（Vue strict typecheck、Desktop build）
+- [x] 默认开箱布局几何烟测（5 个系统组件、20px 栅格、组件间至少 20px、不重叠、完整容纳于 960×640）
+- [x] 旧默认布局升级保护（兼容 4/5 组件旧 starter；并识别历史开发阶段“6 组件 + 重复 Launcher”签名，一次性迁移为 5 组件紧凑布局；保留名称/外观/config）
+- [x] Desktop Organizer 原生基线（Desktop 根目录扫描、hidden/system 跳过、受限路径打开、Web strict build、Rust check）
+- [x] Explorer 图标恢复保护（Canvas 关闭/应用退出恢复；应用启动先恢复，覆盖上次异常终止后残留隐藏状态）
+- [x] Windows 11 实机桌面图标显示回归（打开 Canvas 后 Explorer 原图标隐藏，关闭 Canvas 后恢复）
+- [x] Windows 11 Canvas Z 顺序 / 命中烟测（Progman 模式将 Canvas 置于 `SHELLDLL_DefView` 之上；`WindowFromPoint` 已确认“添加 / 编辑 / 整理”和 Widget 坐标命中 Canvas WebView，HRGN 外空白不命中 Canvas）
+- [x] Canvas GUI 可访问性烟测（5 个系统组件实际加载；Clock Inspector 可打开；Launcher “快速启动 → 应用库 → 关闭”真实 UI Automation 链路通过；滚动区域外项目正确标记 offscreen）
+- [x] Desktop Organizer GUI 回归（分类内容、Canvas 打开时图标隐藏/关闭恢复已验证；2026-09-23 用户实机确认双击文件夹与普通文件均正常打开）
+- [x] Launcher 拖拽根因修复（失效 handle、整块 tile 拖拽、Sortable fallback、严格类型）
+- [x] 鼠标交互回归（顶部控件/Widget 原生命中已验证；2026-09-23 用户实机确认整块拖动、四边/四角缩放、20px 吸附和右侧缩放不误开 Inspector 均正常）
+- [x] Canvas 动画 / 交互优化回归（统一自然曲线；编辑网格、顶部控制条、Palette/Inspector 入场；整理/重置几何补间；拖动/缩放期间禁用几何动画；pointercancel/blur 安全清理；Vue strict build + 基本 GUI 链路通过）
+- [x] 滚动视觉回归（Launcher 快速启动 / Launchpad / Desktop Organizer 静止态各连续 10 帧像素区域哈希唯一值 = 1；无闪动、无横向抖动；Inspector 已使用 stable gutter，继续在配置 GUI 专项回归中观察）
+- [~] 桌面层完整交互回归（桌面图标隐藏/恢复、HRGN 透明区域穿透、Widget 点击、真实 Explorer 重启后 Canvas 重建恢复均已验证；真实桌面右键菜单/框选仍保留人工扩展回归）
+- [x] 桌宠 -> Desktop Canvas 菜单联动回归（2026-09-23 Windows 11：通过真实 UI Automation 打开桌宠菜单并触发“桌面画布”，Canvas 成功显示）
+- [x] S1.9 Canvas 最终验收（真实窗口截图、默认布局、圆角、紧凑内容、20 次开关、滚动稳定、Explorer HWND 重建恢复、应用重启持久化、无 runtime warning、Web/Rust 构建、全仓库 diff check）
+- [ ] 桌宠 -> “添加桌面组件”联动回归（打开 Canvas、进入编辑态、自动展开 Widget 组件库）
+
+## 架构检查
+
+- [x] API Client 单一入口
+- [x] Token 生命周期明确（v0.1：7 天 Access Token；401 统一失效事件同步清空 Store/localStorage；网络/5xx 保留 Token；Refresh Token 延后 Stage 4）
+- [x] Stage 2 工具数据链路回归（真实 PostgreSQL：分类创建/编辑、工具创建/编辑/删除、描述/tags 搜索、分类过滤、收藏添加/过滤/移除；测试夹具全部清理）
+- [x] Stage 2 Backend 异常 / 授权回归（统一 400/401/403/404 错误形态；数字路径参数 ParseInt；跨用户工具/分类越权阻断；私有工具越权收藏阻断；账号删除关联清理；`npm run test:authz-regression` 可重复通过）
+- [x] Web TypeScript / Vue SFC 严格类型检查通过
+- [ ] 统一包管理器与锁文件策略
+- [ ] 文档与代码结构完全同步
+
+## 发布前
+
+- [x] 更新 CHANGELOG
+- [ ] 创建稳定版本标签
+- [ ] 完成回归测试

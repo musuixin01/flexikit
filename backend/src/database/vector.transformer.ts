@@ -10,14 +10,23 @@ export const VectorTransformer: ValueTransformer = {
     return `[${value.join(',')}]`;
   },
 
-  from(value: string | null | undefined): number[] | null {
+  from(value: unknown): number[] | null {
     if (value === null || value === undefined) return null;
     if (typeof value === 'string') {
       // 移除方括号并解析
       const str = value.replace(/[\[\]]/g, '');
       if (!str) return [];
-      return str.split(',').map(Number);
+      const vector = str.split(',').map(Number);
+      if (vector.every((item) => Number.isFinite(item))) return vector;
     }
-    return value as any;
+    if (
+      Array.isArray(value)
+      && value.every(
+        (item): item is number => typeof item === 'number' && Number.isFinite(item),
+      )
+    ) {
+      return value;
+    }
+    throw new Error('Invalid pgvector value');
   },
 };

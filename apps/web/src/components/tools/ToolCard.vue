@@ -58,6 +58,14 @@
         <span v-if="tool.isCustom" class="card-custom-badge">自定义</span>
       </div>
       <div class="card-desc">{{ tool.desc }}</div>
+      <div
+        v-if="mode === 'discovery' && recommendationReason"
+        class="card-recommendation-reason"
+        :title="recommendationReason"
+      >
+        <span class="card-recommendation-dot" aria-hidden="true"></span>
+        <span>{{ recommendationReason }}</span>
+      </div>
     </div>
 
     <!-- 标签 + 收藏（始终显示，未登录点击会提示登录） -->
@@ -222,14 +230,17 @@ import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
 import { useUserStore } from '@/stores/user'
 import { toolsApi } from '@/api/tools'
+import { isDesktopRuntime } from '@/api/runtime'
 import { statsApi } from '@/api/stats'
 import type { Tool, WebsitePreview } from '@/types/tool'
 import { recordToolUsage } from '@/utils/toolUsage'
+import { openDesktopTool } from '@/desktop/openTool'
 import ToolIcon from './ToolIcon.vue'
 
 const props = defineProps<{
   tool: Tool
   mode?: 'normal' | 'discovery'
+  recommendationReason?: string
 }>()
 
 const emit = defineEmits<{
@@ -248,9 +259,9 @@ const toolKey = computed(() => tools.getToolKey(props.tool))
 const selectMode = computed(() => ui.selectMode)
 const isChecked = computed(() => ui.selectedSet.has(toolKey.value))
 const isFav = computed(() => tools.favoriteTools.has(toolKey.value))
-const isLocal = computed(() => !!(props.tool.localPath))
+const isLocal = computed(() => !!(props.tool.localPath || props.tool.local_path))
 const shortLocalPath = computed(() => {
-  const p = props.tool.localPath || ''
+  const p = props.tool.localPath || props.tool.local_path || ''
   if (p.length > 45) return '...' + p.slice(-42)
   return p
 })
@@ -305,7 +316,7 @@ const sourceLabel = computed(() => {
     '36kr': '36氪',
     'oschina': '开源中国',
   }
-  const source = (props.tool as any).source || ''
+  const source = props.tool.source || ''
   return sourceMap[source] || source
 })
 
@@ -462,14 +473,31 @@ async function onCardClick(e: MouseEvent) {
   if (props.tool.id) void statsApi.recordClick(props.tool.id).catch(() => {})
   if (isLocal.value) {
     e.preventDefault()
+    if (!isDesktopRuntime()) {
+      ui.showToast('本地工具仅支持 FlexiKit 桌面端')
+      return
+    }
     try {
-      const toolId = props.tool.id || 0
-      const fallbackPath = props.tool.localPath || undefined
-      await toolsApi.openTool(toolId, fallbackPath)
-      recordToolUsage(props.tool)
-      ui.showToast(`已打开: ${props.tool.name}`)
-    } catch (err: any) {
-      ui.showToast(`打开失败: ${err.response?.data?.message || err.message}`)
+      const opened = await openDesktopTool(props.tool)
+      ui.showToast(opened ? `已打开: ${props.tool.name}` : '这个工具没有可打开的有效地址')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      ui.showToast(`打开失败: ${message}`)
+    }
+    return
+  }
+  if (isDesktopRuntime()) {
+    e.preventDefault()
+    try {
+      const opened = await openDesktopTool(props.tool)
+      if (opened) {
+        ui.showToast('已打开: ' + props.tool.name)
+      } else {
+        ui.showToast('这个工具没有可打开的有效地址')
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      ui.showToast('打开失败: ' + message)
     }
     return
   }
@@ -661,6 +689,33 @@ function handleToolDragEnd() {
 :global([data-theme="dark"]) .tool-card.has-card-color .card-desc,
 :global([data-theme="dark"]) .tool-card.has-card-color .card-url-hint {
   color: var(--text-secondary);
+}
+
+.card-recommendation-reason {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.card-recommendation-reason > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-recommendation-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 58%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 8%, transparent);
 }
 
 /* 发现模式下详细信息面板 */

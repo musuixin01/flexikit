@@ -2,7 +2,11 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { UsersService } from '../users/users.service';
+import type { JwtPayload } from './auth.service';
+import { RefreshSession } from './refresh-session.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -11,6 +15,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
+    @InjectRepository(RefreshSession)
+    private readonly refreshSessionsRepository: Repository<RefreshSession>,
   ) {
     const jwtSecret = configService.get<string>('JWT_SECRET');
     
@@ -25,11 +31,35 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
-    const user = await this.usersService.findOne(payload.sub);
-    if (!user) {
+  async validate(payload: JwtPayload) {
+    if (payload.token_use !== undefined && payload.token_use !== 'access') {
       throw new UnauthorizedException();
     }
-    return { userId: user.id, username: user.username };
+    const user = await this.usersService.findOne(payload.sub);
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException();
+    }
+
+    if (payload.sid) {
+      const session = await this.refreshSessionsRepository.findOne({
+        where: {
+          id: payload.sid,
+          user_id: user.id,
+        },
+      });
+      if (
+        !session
+        || session.revokedAt
+        || session.expiresAt.getTime() <= Date.now()
+      ) {
+        throw new UnauthorizedException();
+      }
+    }
+
+    return {
+      userId: user.id,
+      username: user.username,
+      sessionId: payload.sid ?? null,
+    };
   }
 }

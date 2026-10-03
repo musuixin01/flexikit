@@ -45,8 +45,64 @@ export class Tool {
   card_color!: string | null;
 
   // pgvector 类型
-  @Column('vector', { nullable: true, length: 1536, transformer: VectorTransformer })
+  @Column('vector', {
+    nullable: true,
+    length: 1536,
+    transformer: VectorTransformer,
+    select: false,
+  })
   embedding!: number[] | null;
+
+  @Column({
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+    name: 'embedding_provider',
+    select: false,
+  })
+  embeddingProvider!: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 120,
+    nullable: true,
+    name: 'embedding_model',
+    select: false,
+  })
+  embeddingModel!: string | null;
+
+  @Column({
+    type: 'smallint',
+    nullable: true,
+    name: 'embedding_dimensions',
+    select: false,
+  })
+  embeddingDimensions!: number | null;
+
+  @Column({
+    type: 'smallint',
+    nullable: true,
+    name: 'embedding_source_version',
+    select: false,
+  })
+  embeddingSourceVersion!: number | null;
+
+  @Column({
+    type: 'char',
+    length: 64,
+    nullable: true,
+    name: 'embedding_source_hash',
+    select: false,
+  })
+  embeddingSourceHash!: string | null;
+
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+    name: 'embedding_updated_at',
+    select: false,
+  })
+  embeddingUpdatedAt!: Date | null;
 
   @Column({ type: 'int', default: 0 })
   view_count!: number;

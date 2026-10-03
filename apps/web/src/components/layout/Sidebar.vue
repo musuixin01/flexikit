@@ -49,6 +49,18 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9 4.9-2.1Z"/></svg>
           <span>发现工具</span>
         </RouterLink>
+        <RouterLink to="/assistant" class="desktop-nav-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8a4 4 0 0 1 4 4v5a4 4 0 0 1-4 4h-3l-4 3v-3H8a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4Z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/></svg>
+          <span>AI 助手</span>
+        </RouterLink>
+        <button type="button" class="desktop-nav-item desktop-nav-button" @click="openDesktopCanvas">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="12" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M15 19h6"/></svg>
+          <span>桌面画布</span>
+        </button>
+        <RouterLink v-if="isAdmin" to="/admin/overview" class="desktop-nav-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 9h8M8 13h5M8 17h3"/></svg>
+          <span>管理端</span>
+        </RouterLink>
       </nav>
 
       <template v-if="!compactMode">
@@ -140,6 +152,7 @@
 
       <!-- 底部固定操作区 -->
       <div class="sidebar-footer">
+        <RouterLink v-if="isAdmin && !isDesktop" to="/admin/overview" class="theme-btn">管理端</RouterLink>
         <div class="theme-toggle-wrap">
           <button :class="['theme-btn', { active: ui.theme === 'auto' }]" @click="ui.setTheme('auto')">跟随系统</button>
           <button :class="['theme-btn', { active: ui.theme === 'light' }]" @click="ui.setTheme('light')">亮色</button>
@@ -156,12 +169,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import Sortable from 'sortablejs'
 import { useToolsStore } from '@/stores/tools'
 import { useUiStore } from '@/stores/ui'
-import { isDesktopRuntime } from '@/api/runtime'
+import { useUserStore } from '@/stores/user'
+import { adminApi } from '@/api/admin'
+import { invokeDesktop, isDesktopRuntime } from '@/api/runtime'
 
 const props = withDefaults(defineProps<{
   compactMode?: boolean
@@ -171,6 +186,8 @@ const props = withDefaults(defineProps<{
 
 const tools = useToolsStore()
 const ui = useUiStore()
+const user = useUserStore()
+const isAdmin = ref(false)
 const isDesktop = isDesktopRuntime()
 const compactMode = computed(() => props.compactMode)
 
@@ -306,6 +323,31 @@ function onMobileCatChange(e: Event) {
 function enterSelect() { ui.enterSelectMode(); ui.showToast('整理模式已开启，可勾选工具进行批量删除') }
 function exitSelect() { ui.exitSelectMode(); ui.showToast('已退出整理模式') }
 function toggleFav() { ui.showOnlyFav = !ui.showOnlyFav; ui.showToast(ui.showOnlyFav ? '仅显示收藏的工具' : '已显示全部工具') }
+
+async function refreshAdminAccess(): Promise<void> {
+  if (!user.isLoggedIn || !user.profile?.id) {
+    isAdmin.value = false
+    return
+  }
+
+  try {
+    isAdmin.value = Boolean(await adminApi.checkAccess())
+  } catch {
+    isAdmin.value = false
+  }
+}
+
+watch(
+  () => [user.isLoggedIn, user.profile?.id] as const,
+  () => {
+    void refreshAdminAccess()
+  },
+  { immediate: true },
+)
+
+function openDesktopCanvas(): void {
+  void invokeDesktop('show_desktop_canvas')
+}
 
 const emit = defineEmits<{
   'open-add-modal': []

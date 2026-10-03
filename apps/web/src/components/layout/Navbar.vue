@@ -243,9 +243,9 @@ function openProfile() {
   router.push('/login?tab=profile')
 }
 
-function handleLogout() {
+async function handleLogout() {
   showUserMenu.value = false
-  user.logout()
+  await user.logout()
   ui.showToast('已退出登录')
   router.push('/login')
 }

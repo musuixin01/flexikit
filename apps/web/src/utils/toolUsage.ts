@@ -1,4 +1,6 @@
 import type { Tool } from '@/types/tool'
+import { isUsagePersonalizationEnabled } from '@/privacy/privacyPreferences'
+import { recordRecommendationBehaviorEvent } from '@/recommendations/behaviorEvents'
 
 const STORAGE_KEY = 'flexikit-tool-usage-v1'
 
@@ -15,6 +17,7 @@ export function getToolUsageKey(tool: Tool): string {
 }
 
 export function readToolUsage(): ToolUsageMap {
+  if (!isUsagePersonalizationEnabled()) return {}
   try {
     const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
     return value && typeof value === 'object' ? value as ToolUsageMap : {}
@@ -24,6 +27,7 @@ export function readToolUsage(): ToolUsageMap {
 }
 
 export function recordToolUsage(tool: Tool): void {
+  if (!isUsagePersonalizationEnabled()) return
   const usage = readToolUsage()
   const key = getToolUsageKey(tool)
   const previous = usage[key]
@@ -38,6 +42,9 @@ export function recordToolUsage(tool: Tool): void {
       .slice(0, 120),
   )
   localStorage.setItem(STORAGE_KEY, JSON.stringify(compactUsage))
+  if (tool.id != null) {
+    recordRecommendationBehaviorEvent('tool_open', tool.id)
+  }
 }
 
 export function getPersonalToolScore(tool: Tool, usage: ToolUsageMap): number {

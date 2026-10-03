@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Category } from './category.entity';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
-import { User } from '../users/user.entity';
 
 @Injectable()
 export class CategoriesService {
@@ -25,10 +24,10 @@ export class CategoriesService {
     });
   }
 
-  async create(createDto: CreateCategoryDto, user: User): Promise<Category> {
+  async create(createDto: CreateCategoryDto, userId: number): Promise<Category> {
     const cat = this.categoriesRepository.create({
       ...createDto,
-      user_id: user.id,
+      user_id: userId,
     });
     return this.categoriesRepository.save(cat);
   }

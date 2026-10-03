@@ -3,8 +3,8 @@
     <div class="legal-container">
       <router-link to="/" class="back-link">← 返回首页</router-link>
       <h1>隐私政策</h1>
-      <p class="update-date">最后更新日期：2026 年 6 月 26 日</p>
-      <p class="effective-date">生效日期：2026 年 6 月 26 日</p>
+      <p class="update-date">最后更新日期：2026 年 9 月 26 日</p>
+      <p class="effective-date">生效日期：2026 年 9 月 26 日</p>
 
       <section>
         <h2>1. 引言</h2>
@@ -21,11 +21,12 @@
           <li><strong>工具数据：</strong>您创建的自定义工具（名称、URL、描述、图标）</li>
           <li><strong>偏好设置：</strong>主题模式、布局偏好、收藏列表</li>
         </ul>
-        <p><strong>2.2 自动收集的信息：</strong></p>
+        <p><strong>2.2 设备本地数据：</strong></p>
         <ul>
-          <li><strong>日志数据：</strong>IP 地址、浏览器类型、访问时间、引用页面</li>
-          <li><strong>Cookie：</strong>用于会话管理、偏好记忆、安全防护（详见第 6 条）</li>
-          <li><strong>使用数据：</strong>功能使用频率、页面浏览量（匿名统计）</li>
+          <li><strong>搜索最近项：</strong>在您允许时，本机保存从全局搜索打开过的应用、文件和文件夹，用于“最近使用”</li>
+          <li><strong>使用历史：</strong>在您允许时，本机保存工具/应用打开次数和最近使用时间，用于本地排序与推荐</li>
+          <li><strong>资料缓存：</strong>在您允许时，本机可缓存邮箱、显示名称和头像等资料副本，不包含密码</li>
+          <li><strong>Canvas 内容：</strong>便签、待办、文件夹路径等由您主动保存的内容保留在当前设备，除非您明确执行备份、导出或删除操作</li>
         </ul>
       </section>
 
@@ -45,15 +46,15 @@
 
       <section>
         <h2>4. 数据存储与安全</h2>
-        <p><strong>4.1 存储位置：</strong>您的数据存储在位于中国大陆的服务器上（遵循 ICP 备案要求），使用 PostgreSQL 数据库进行管理。</p>
-        <p><strong>4.2 安全措施：</strong>我们采用业界标准的安全措施保护您的数据，包括：</p>
+        <p><strong>4.1 存储边界：</strong>账户资料、自定义工具、收藏等服务端数据由 FlexiKit 后端保存；Canvas、搜索最近项、使用历史和隐私偏好等设备本地数据默认保留在当前设备，不会因为开启本地记录而自动上传。</p>
+        <p><strong>4.2 安全措施：</strong>当前实现采用以下措施保护数据：</p>
         <ul>
-          <li>密码使用 bcrypt 加密存储，不可逆</li>
-          <li>API 使用 JWT 令牌进行身份验证</li>
-          <li>HTTPS 加密传输</li>
-          <li>服务器访问控制和日志审计</li>
+          <li>密码使用 bcrypt 单向哈希存储</li>
+          <li>Windows Desktop 的 Access/Refresh Token 使用当前 Windows 用户的 DPAPI 保护</li>
+          <li>Browser Access Token 仅保存在运行时内存，Refresh Session 使用 HttpOnly Cookie</li>
+          <li>本地备份使用 AES-GCM-256 加密，并明确排除登录凭据</li>
         </ul>
-        <p><strong>4.3 数据保留：</strong>我们仅在提供服务所必需的时间内保留您的个人信息。账户删除后，所有关联数据将在 30 天内永久清除。</p>
+        <p><strong>4.3 数据保留：</strong>设备本地搜索/使用历史可在“数据管理 → 隐私设置”随时停止记录并清除；账户和其他本地数据的完整导出、删除规则以“数据管理”页面实际提供的功能为准。</p>
       </section>
 
       <section>
@@ -61,20 +62,15 @@
         <p>我们<strong>不会</strong>将您的个人信息分享给第三方用于其自身的营销目的。以下情况下可能涉及有限的第三方访问：</p>
         <ul>
           <li><strong>托管服务：</strong>我们的服务器托管商可能接触基础架构层面的数据</li>
-          <li><strong>分析服务：</strong>可能使用匿名化的分析工具来改善服务</li>
+          <li><strong>分析服务：</strong>当前版本未启用第三方分析；若未来启用，将在实际启用前更新本政策和对应选择</li>
           <li><strong>法律要求：</strong>在法律要求或许可的情况下向执法机构披露信息</li>
         </ul>
       </section>
 
       <section>
         <h2>6. Cookie 政策</h2>
-        <p>我们使用以下类型的 Cookie：</p>
-        <ul>
-          <li><strong>必要 Cookie：</strong>用于用户认证（JWT Token 存储）、CSRF 防护，是服务正常运行所必需的</li>
-          <li><strong>功能 Cookie：</strong>用于记住您的主题偏好、布局设置、语言选择</li>
-          <li><strong>分析 Cookie：</strong>用于匿名统计访问量和使用情况（如使用）</li>
-        </ul>
-        <p>您可以通过浏览器设置管理 Cookie 偏好，或使用我们的 Cookie 偏好面板（页面底部可随时调出）。禁用必要 Cookie 可能导致部分功能不可用。</p>
+        <p>当前 FlexiKit 网页版仅使用维持登录 Refresh Session 所需的必要 HttpOnly Cookie。主题、布局、隐私设置等偏好保存在浏览器本地存储中，不作为 Cookie 发送给服务器。</p>
+        <p>当前版本未启用分析 Cookie。若未来引入非必要 Cookie 或第三方分析，将在启用前更新本政策并提供与实际行为一致的选择。</p>
       </section>
 
       <section>
@@ -87,7 +83,7 @@
           <li><strong>数据可携带权：</strong>以结构化、机器可读的格式导出您的数据</li>
           <li><strong>限制处理权：</strong>限制或反对我们对您数据的处理</li>
         </ul>
-        <p>要行使上述权利，请通过"数据管理"页面或联系 support@flexikit.com。我们将在 30 天内回复您的请求。</p>
+        <p>您可以通过“数据管理”页面控制设备本地记录、创建加密备份、导出服务器数据或执行账户相关操作；其他请求可通过 support@flexikit.com 联系我们。</p>
       </section>
 
       <section>

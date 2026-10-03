@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { Favorite } from '../favorites/favorite.entity';
 import { Tool } from '../tools/tool.entity';
 import { ToolOrder } from '../orders/tool-order.entity';
 import { Category } from '../categories/category.entity';
+import { RefreshSession } from '../auth/refresh-session.entity';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { deleteUserAccountData } from './user-account-deletion';
 
 type ProfileUpdateData = Pick<User, 'displayName' | 'avatar' | 'avatarType' | 'email'>;
 
@@ -23,6 +25,7 @@ export class UsersService {
     private toolOrdersRepository: Repository<ToolOrder>,
     @InjectRepository(Category)
     private categoriesRepository: Repository<Category>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -90,52 +93,89 @@ export class UsersService {
    * GDPR：导出用户的所有个人数据（JSON 格式）
    */
   async exportUserData(userId: number) {
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-      relations: ['tools', 'favorites', 'toolOrders', 'categories'],
-    });
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
 
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
 
+    const refreshSessionsRepository = this.dataSource.getRepository(RefreshSession);
+    const [tools, favorites, toolOrders, categories, authSessions] = await Promise.all([
+      this.toolsRepository.find({ where: { user_id: userId }, order: { id: 'ASC' } }),
+      this.favoritesRepository.find({ where: { user_id: userId }, order: { id: 'ASC' } }),
+      this.toolOrdersRepository.find({ where: { user_id: userId }, order: { id: 'ASC' } }),
+      this.categoriesRepository.find({
+        where: { user_id: userId },
+        order: { display_order: 'ASC', id: 'ASC' },
+      }),
+      refreshSessionsRepository.find({
+        where: { user_id: userId },
+        order: { createdAt: 'ASC' },
+      }),
+    ]);
+
     return {
+      schemaVersion: 1,
       exportedAt: new Date().toISOString(),
-      user: {
+      account: {
         id: user.id,
         username: user.username,
         email: user.email,
         displayName: user.displayName,
         avatar: user.avatar,
         avatarType: user.avatarType,
-        createdAt: user.created_at,
+        role: user.role,
+        status: user.status,
+        createdAt: user.created_at.toISOString(),
       },
-      tools: user.tools || [],
-      favorites: user.favorites || [],
-      toolOrders: user.toolOrders || [],
-      categories: user.categories || [],
+      tools: tools.map((tool) => ({
+        id: tool.id,
+        name: tool.name,
+        url: tool.url,
+        description: tool.description,
+        tags: tool.tags,
+        category: tool.category,
+        icon: tool.icon,
+        isCustom: tool.is_custom,
+        localPath: tool.local_path,
+        cardColor: tool.card_color,
+        createdAt: tool.created_at.toISOString(),
+        updatedAt: tool.updated_at.toISOString(),
+      })),
+      favorites: favorites.map((favorite) => ({
+        id: favorite.id,
+        toolId: favorite.tool_id,
+        createdAt: favorite.created_at.toISOString(),
+      })),
+      toolOrders: toolOrders.map((order) => ({
+        id: order.id,
+        orderedIds: order.ordered_ids,
+      })),
+      categories: categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        displayOrder: category.display_order,
+        createdAt: category.created_at.toISOString(),
+      })),
+      authSessions: authSessions.map((session) => ({
+        sessionId: session.id,
+        clientType: session.clientType,
+        clientInstanceId: session.clientInstanceId,
+        clientName: session.clientName,
+        expiresAt: session.expiresAt.toISOString(),
+        revokedAt: session.revokedAt?.toISOString() ?? null,
+        lastUsedAt: session.lastUsedAt?.toISOString() ?? null,
+        createdAt: session.createdAt.toISOString(),
+      })),
     };
   }
 
   /**
    * GDPR：删除用户账户及所有关联数据（不可逆）
    */
-  async deleteUserAccount(userId: number) {
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
+  async deleteUserAccount(userId: number): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      await deleteUserAccountData(manager, userId);
     });
-
-    if (!user) {
-      throw new NotFoundException('用户不存在');
-    }
-
-    // 按依赖顺序删除关联数据
-    await this.favoritesRepository.delete({ user: { id: userId } });
-    await this.toolOrdersRepository.delete({ user: { id: userId } });
-    await this.categoriesRepository.delete({ user: { id: userId } });
-    await this.toolsRepository.delete({ user: { id: userId } });
-
-    // 最后删除用户本身
-    await this.usersRepository.remove(user);
   }
 }

@@ -79,13 +79,24 @@
 import { ref, reactive, watch } from 'vue'
 import AvatarPicker from '@/components/common/AvatarPicker.vue'
 
+interface RegisterFormData {
+  username: string
+  email: string
+  displayName: string
+  password: string
+  confirmPassword: string
+  avatar: string
+  avatarType: 'upload' | 'preset' | 'emoji'
+  avatarData: string
+}
+
 const props = defineProps<{
   loading?: boolean
   error?: string
 }>()
 
 const emit = defineEmits<{
-  (e: 'submit', data: any): void
+  (e: 'submit', data: RegisterFormData): void
   (e: 'switch-tab', tab: 'login' | 'profile'): void
 }>()
 

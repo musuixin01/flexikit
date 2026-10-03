@@ -104,6 +104,25 @@ import ToastMessage from '@/components/common/ToastMessage.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
 import RegisterForm from '@/components/auth/RegisterForm.vue'
 import ProfileForm from '@/components/auth/ProfileForm.vue'
+import { getApiErrorMessage } from '@/api/client'
+
+interface RegisterFormData {
+  username: string
+  email: string
+  displayName: string
+  password: string
+  confirmPassword: string
+  avatar: string
+  avatarType: 'upload' | 'preset' | 'emoji'
+  avatarData: string
+}
+
+interface ProfileFormData {
+  displayName: string
+  avatar: string
+  avatarType: 'upload' | 'preset' | 'emoji'
+  avatarData: string
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -148,24 +167,11 @@ function openForgotPwd() {
 }
 
 function handleFindAccount() {
-  forgotError.value = ''
-  if (!forgotUsername.value.trim()) { forgotError.value = '请输入用户名'; return }
-  if (!userStore.users[forgotUsername.value.trim()]) { forgotError.value = '用户不存在'; return }
-  forgotStep.value = true
+  forgotError.value = '当前版本暂不支持密码自助重置，请联系管理员'
 }
 
 function handleResetPwd() {
-  forgotError.value = ''
-  const newPwd = forgotNewPwd.value.trim()
-  if (newPwd.length < 6) { forgotError.value = '新密码至少6位'; return }
-  const uname = forgotUsername.value.trim()
-  if (userStore.users[uname]) {
-    userStore.users[uname].password = newPwd
-    localStorage.setItem('flexikit-users', JSON.stringify(userStore.users))
-    showForgotModal.value = false
-    ui.showToast('密码已重置，请用新密码登录')
-    // 这里可以自动填充登录用户名
-  }
+  forgotError.value = '当前版本暂不支持密码自助重置，请联系管理员'
 }
 
 function switchTab(t: 'login' | 'register' | 'profile') {
@@ -182,14 +188,14 @@ async function handleLogin(data: { username: string; password: string }) {
     const result = await userStore.login(data.username, data.password)
     if (result.success) { ui.showToast('登录成功！'); router.push('/app') }
     else errorMsg.value = result.error || '登录失败'
-  } catch (e: any) {
-    errorMsg.value = e.message || '登录失败'
+  } catch (e: unknown) {
+    errorMsg.value = getApiErrorMessage(e, '登录失败')
   } finally {
     loading.value = false
   }
 }
 
-async function handleRegister(data: any) {
+async function handleRegister(data: RegisterFormData) {
   errorMsg.value = ''
   if (data.password !== data.confirmPassword) {
     errorMsg.value = '两次输入的密码不一致'
@@ -207,27 +213,27 @@ async function handleRegister(data: any) {
       ui.showToast('注册成功！')
       router.push('/app')
     } else errorMsg.value = result.error || '注册失败'
-  } catch (e: any) {
-    errorMsg.value = e.message || '注册失败'
+  } catch (e: unknown) {
+    errorMsg.value = getApiErrorMessage(e, '注册失败')
   } finally {
     loading.value = false
   }
 }
 
-async function handleUpdateProfile(data: any) {
+async function handleUpdateProfile(data: ProfileFormData) {
   errorMsg.value = ''
   if (!userStore.profile) return
   try {
     await userStore.updateProfile({ displayName: data.displayName || userStore.profile.username })
     applyAvatar(data.avatar, data.avatarType, data.avatarData)
     ui.showToast('资料已更新')
-  } catch (e: any) {
-    errorMsg.value = e.message || '更新失败'
+  } catch (e: unknown) {
+    errorMsg.value = getApiErrorMessage(e, '更新失败')
   }
 }
 
-function handleLogout() {
-  userStore.logout()
+async function handleLogout() {
+  await userStore.logout()
   switchTab('login')
   ui.showToast('已退出登录')
 }

@@ -5,6 +5,8 @@ import { ToolOrder } from '../orders/tool-order.entity';
 import { Category } from '../categories/category.entity';
 
 export type UserAvatarType = 'upload' | 'preset' | 'emoji';
+export type UserRole = 'user' | 'admin';
+export type UserAccountStatus = 'active' | 'suspended';
 
 @Entity('users')
 export class User {
@@ -28,6 +30,12 @@ export class User {
 
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'avatar_type' })
   avatarType!: UserAvatarType | null;
+
+  @Column({ type: 'varchar', length: 16, default: 'user' })
+  role!: UserRole;
+
+  @Column({ type: 'varchar', length: 16, default: 'active' })
+  status!: UserAccountStatus;
 
   @CreateDateColumn({ name: 'created_at' })
   created_at!: Date;

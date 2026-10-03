@@ -2,6 +2,11 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, ILike } from 'typeorm';
 import { DiscoveryTool } from './discovery.entity';
+import type { DiscoveryQueryDto } from './dto/discovery-query.dto';
+import {
+  calculateDiscoveryHeatScore,
+  discoveryHeatSql,
+} from './discovery-heat';
 
 @Injectable()
 export class DiscoveryService implements OnModuleInit {
@@ -250,14 +255,8 @@ export class DiscoveryService implements OnModuleInit {
   /**
    * 获取发现工具列表
    */
-  async findAll(query: {
-    source?: string;
-    category?: string;
-    search?: string;
-    sort?: 'hot' | 'new' | 'upvotes';
-    limit?: number;
-    offset?: number;
-  }) {
+  async findAll(query: DiscoveryQueryDto) {
+    const heatNow = new Date();
     const {
       source,
       category,
@@ -297,7 +296,9 @@ export class DiscoveryService implements OnModuleInit {
         break;
       case 'hot':
       default:
-        qb.orderBy('tool.hot_score', 'DESC');
+        qb.setParameter('heatNow', heatNow)
+          .orderBy(discoveryHeatSql('tool'), 'DESC')
+          .addOrderBy('tool.id', 'ASC');
         break;
     }
 
@@ -306,28 +307,36 @@ export class DiscoveryService implements OnModuleInit {
 
     const [items, total] = await qb.getManyAndCount();
 
-    return { items, total };
+    return {
+      items: items.map((item) => this.withCalculatedHeat(item, heatNow)),
+      total,
+    };
   }
 
   /**
    * 获取推荐工具（按热度排序）
    */
   async getRecommendations(limit: number = 6, source?: string) {
+    const heatNow = new Date();
     const qb = this.discoveryRepository.createQueryBuilder('tool');
     
     if (source) {
       qb.andWhere('tool.source = :source', { source });
     }
     
-    qb.orderBy('tool.hot_score', 'DESC')
+    qb.setParameter('heatNow', heatNow)
+      .orderBy(discoveryHeatSql('tool'), 'DESC')
+      .addOrderBy('tool.id', 'ASC')
       .take(limit);
-    return qb.getMany();
+    const items = await qb.getMany();
+    return items.map((item) => this.withCalculatedHeat(item, heatNow));
   }
 
   /**
    * 获取排行榜
    */
   async getRankings(period: string = 'all', limit: number = 10, source?: string) {
+    const heatNow = new Date();
     const qb = this.discoveryRepository.createQueryBuilder('tool');
     
     if (source) {
@@ -342,14 +351,13 @@ export class DiscoveryService implements OnModuleInit {
       }
     }
     
-    qb.orderBy('tool.hot_score', 'DESC')
+    qb.setParameter('heatNow', heatNow)
+      .orderBy(discoveryHeatSql('tool'), 'DESC')
+      .addOrderBy('tool.id', 'ASC')
       .take(limit);
     
     const items = await qb.getMany();
-    return items.map(item => ({
-      ...item,
-      hot_score: item.hot_score,
-    }));
+    return items.map((item) => this.withCalculatedHeat(item, heatNow));
   }
 
   /**
@@ -420,29 +428,76 @@ export class DiscoveryService implements OnModuleInit {
    * 添加工具（爬虫用）
    */
   async addTool(toolData: Partial<DiscoveryTool>) {
+    const heatNow = new Date();
     // 检查是否已存在（按 URL 去重）
     const existing = await this.discoveryRepository.findOne({
       where: { url: toolData.url },
     });
 
     if (existing) {
-      // 更新热度分等信息
-      existing.hot_score = toolData.hot_score ?? existing.hot_score;
-      existing.upvotes = toolData.upvotes ?? existing.upvotes;
-      existing.comments = toolData.comments ?? existing.comments;
+      // 上游只提供公开聚合量；热度分始终由本服务统一计算。
+      existing.upvotes = this.sanitizeCount(toolData.upvotes, existing.upvotes);
+      existing.comments = this.sanitizeCount(toolData.comments, existing.comments);
+      existing.hot_score = calculateDiscoveryHeatScore(
+        {
+          upvotes: existing.upvotes,
+          comments: existing.comments,
+          discoveredAt: existing.discovered_at,
+          createdAt: existing.created_at,
+        },
+        heatNow,
+      );
       return this.discoveryRepository.save(existing);
     }
 
     // 如果没有图标，自动生成 favicon 地址
     const icon = toolData.icon || this.getFaviconUrl(toolData.url || '');
+    const discoveredAt = toolData.discovered_at || heatNow;
+    const upvotes = this.sanitizeCount(toolData.upvotes, 0);
+    const comments = this.sanitizeCount(toolData.comments, 0);
 
     const tool = this.discoveryRepository.create({
       ...toolData,
       icon,
-      discovered_at: toolData.discovered_at || new Date(),
+      upvotes,
+      comments,
+      discovered_at: discoveredAt,
+      hot_score: calculateDiscoveryHeatScore(
+        {
+          upvotes,
+          comments,
+          discoveredAt,
+        },
+        heatNow,
+      ),
     });
 
     return this.discoveryRepository.save(tool);
+  }
+
+  private withCalculatedHeat(tool: DiscoveryTool, now: Date): DiscoveryTool {
+    return {
+      ...tool,
+      hot_score: calculateDiscoveryHeatScore(
+        {
+          upvotes: tool.upvotes,
+          comments: tool.comments,
+          discoveredAt: tool.discovered_at,
+          createdAt: tool.created_at,
+        },
+        now,
+      ),
+    };
+  }
+
+  private sanitizeCount(
+    candidate: number | null | undefined,
+    fallback: number,
+  ): number {
+    if (typeof candidate !== 'number' || !Number.isFinite(candidate)) {
+      return Math.max(0, Math.trunc(fallback || 0));
+    }
+    return Math.max(0, Math.trunc(candidate));
   }
 
   /**

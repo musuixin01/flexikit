@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards, Request, Logger } from '@nestjs/common';
 import { ToolsService } from '../tools/tools.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import type { AuthenticatedRequest } from '../common/types/authenticated-request';
 
 @Controller('stats')
 @UseGuards(JwtAuthGuard)
@@ -21,7 +22,7 @@ export class StatsController {
   }
 
   @Post('search')
-  recordSearch(@Body('query') query: string, @Request() req) {
+  recordSearch(@Body('query') query: string, @Request() req: AuthenticatedRequest) {
     this.logger.log(`User ${req.user.userId} searched: ${query}`);
     return { success: true };
   }

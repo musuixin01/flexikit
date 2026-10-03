@@ -9,6 +9,7 @@ export default () => ({
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'secret',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    accessTokenTtl: process.env.ACCESS_TOKEN_TTL || process.env.JWT_EXPIRES_IN || '30m',
+    refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || '30d',
   },
 });

@@ -154,10 +154,13 @@
                   <button class="setting-btn" @click="bindEmail">绑定</button>
                 </div>
                 <div class="setting-item danger">
-                  <span>注销账号</span>
-                  <button class="setting-btn danger" @click="deleteAccount">注销</button>
+                  <span>删除账号</span>
+                  <button class="setting-btn danger" @click="deleteAccount">管理</button>
                 </div>
               </section>
+
+              <DeviceSessionsPanel v-if="activeProfileView === 'account'" />
+              <ByokCredentialPanel v-if="activeProfileView === 'account'" />
 
               <!-- 使用统计 -->
               <section class="section-card activity-panel">
@@ -253,6 +256,8 @@ import { useUiStore } from '@/stores/ui'
 import type { Tool } from '@/types/tool'
 import Navbar from '@/components/layout/Navbar.vue'
 import ToastMessage from '@/components/common/ToastMessage.vue'
+import DeviceSessionsPanel from '@/components/auth/DeviceSessionsPanel.vue'
+import ByokCredentialPanel from '@/components/ai/ByokCredentialPanel.vue'
 
 const user = useUserStore()
 const tools = useToolsStore()
@@ -397,8 +402,8 @@ function goEditProfile() {
   router.push('/login?tab=profile')
 }
 
-function handleLogout() {
-  user.logout()
+async function handleLogout() {
+  await user.logout()
   ui.showToast('已退出登录')
   router.push('/login')
 }
@@ -412,9 +417,7 @@ function bindEmail() {
 }
 
 function deleteAccount() {
-  if (confirm('确定要注销账号吗？此操作不可撤销！')) {
-    ui.showToast('账号已注销（模拟）')
-  }
+  void router.push('/data')
 }
 
 // 组件挂载时不强制跳转，由用户决定

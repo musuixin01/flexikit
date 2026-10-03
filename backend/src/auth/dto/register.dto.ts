@@ -1,6 +1,7 @@
 import { IsString, IsEmail, MinLength, MaxLength, Matches } from 'class-validator';
+import { AuthClientContextDto } from './auth-client-context.dto';
 
-export class RegisterDto {
+export class RegisterDto extends AuthClientContextDto {
   @IsString({ message: '用户名必须是字符串' })
   @MinLength(3, { message: '用户名至少需要3个字符' })
   @MaxLength(20, { message: '用户名最多20个字符' })

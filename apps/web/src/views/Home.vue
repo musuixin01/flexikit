@@ -146,12 +146,12 @@ function onExport() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `flexikit_backup_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
+  a.download = `flexikit_tools_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-  ui.showToast('已导出当前数据')
+  ui.showToast('已导出工具数据')
 }
 
 function onImport() {

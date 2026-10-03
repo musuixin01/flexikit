@@ -1,8 +1,29 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authApi } from '@/api/auth'
+import { authApi, type AuthTokenResponse } from '@/api/auth'
 import { usersApi } from '@/api/users'
+import {
+  AUTH_INVALIDATED_EVENT,
+  AUTH_REFRESHED_EVENT,
+  getApiErrorMessage,
+  isApiNetworkError,
+  isApiUnauthorizedError,
+} from '@/api/client'
 import { useToolsStore } from '@/stores/tools'
+import {
+  clearStoredAccessToken,
+  getStoredAccessToken,
+  getStoredAccessTokenExpiresAtMs,
+  isStoredAccessTokenExpired,
+  persistAccessToken,
+} from '@/auth/accessToken'
+import {
+  clearStoredRefreshToken,
+  getStoredRefreshToken,
+  hasStoredRefreshSession,
+  persistRefreshToken,
+} from '@/auth/refreshToken'
+import { isLocalProfileCacheEnabled } from '@/privacy/privacyPreferences'
 
 export interface UserProfile {
   id: number
@@ -34,7 +55,6 @@ function safeParseProfiles(raw: string | null): Record<string, LocalProfileCache
 }
 
 const LOCAL_PROFILE_KEY = 'flexikit-profiles'
-const TOKEN_KEY = 'token'
 
 export const PRESET_AVATARS = [
   { id: 'emoji-1', label: '😯', type: 'emoji' as const },
@@ -69,12 +89,14 @@ export const PRESET_GRADIENT_AVATARS = [
 ]
 
 export const useUserStore = defineStore('user', () => {
-  const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
+  const token = ref<string | null>(null)
   const profile = ref<UserProfile | null>(null)
   const isLoggedIn = ref(false)
-  /** 本地只缓存非敏感的用户资料，不存储密码 */
+  /** 本地资料缓存不存密码，但 email / avatar 等仍属于个人数据。 */
   const profileCache = ref<Record<string, LocalProfileCache>>(
-    safeParseProfiles(localStorage.getItem(LOCAL_PROFILE_KEY))
+    isLocalProfileCacheEnabled()
+      ? safeParseProfiles(localStorage.getItem(LOCAL_PROFILE_KEY))
+      : {}
   )
 
   const displayName = computed(() => profile.value?.displayName || profile.value?.username || '用户')
@@ -88,38 +110,132 @@ export const useUserStore = defineStore('user', () => {
   })
 
   function persistProfileCache() {
+    if (!isLocalProfileCacheEnabled()) {
+      profileCache.value = {}
+      localStorage.removeItem(LOCAL_PROFILE_KEY)
+      return
+    }
     localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(profileCache.value))
   }
 
-  function isNetworkError(err: unknown): boolean {
-    const e = err as { response?: unknown; code?: string }
-    return !e?.response || e?.code === 'ERR_NETWORK' || e?.code === 'ECONNABORTED'
+  async function persistAuthTokens(lifecycle: AuthTokenResponse) {
+    try {
+      await Promise.all([
+        persistAccessToken(lifecycle),
+        persistRefreshToken(lifecycle),
+      ])
+    } catch (error) {
+      await Promise.allSettled([
+        clearStoredAccessToken(),
+        clearStoredRefreshToken(),
+      ])
+      throw error
+    }
   }
 
-  function formatErrorMessage(message: unknown): string {
-    if (!message) return ''
-    if (Array.isArray(message)) {
-      return message.join('、')
+  let accessTokenExpiryTimer: number | null = null
+
+  function cancelAccessTokenExpiryTimer() {
+    if (accessTokenExpiryTimer !== null && typeof window !== 'undefined') {
+      window.clearTimeout(accessTokenExpiryTimer)
     }
-    if (typeof message === 'string') {
-      return message
+    accessTokenExpiryTimer = null
+  }
+
+  async function scheduleAccessTokenExpiry() {
+    cancelAccessTokenExpiryTimer()
+    if (!token.value || typeof window === 'undefined') return
+
+    const expiresAt = await getStoredAccessTokenExpiresAtMs()
+    if (expiresAt === null) return
+
+    const remainingMs = expiresAt - Date.now()
+    if (remainingMs <= 0) {
+      token.value = null
+      await clearStoredAccessToken()
+      return
     }
-    return '操作失败'
+
+    const maxDelayMs = 2_147_000_000
+    accessTokenExpiryTimer = window.setTimeout(() => {
+      void (async () => {
+        if (await isStoredAccessTokenExpired()) {
+          token.value = null
+          await clearStoredAccessToken()
+        } else {
+          await scheduleAccessTokenExpiry()
+        }
+      })()
+    }, Math.min(remainingMs, maxDelayMs))
+  }
+
+  async function handleAccessTokenFocus() {
+    token.value = await getStoredAccessToken()
+    if (!token.value) return
+    if (await isStoredAccessTokenExpired()) {
+      token.value = null
+      await clearStoredAccessToken()
+      return
+    }
+    await scheduleAccessTokenExpiry()
+  }
+
+  async function clearAuthState(clearTools = true) {
+    cancelAccessTokenExpiryTimer()
+    token.value = null
+    await Promise.allSettled([
+      clearStoredAccessToken(),
+      clearStoredRefreshToken(),
+    ])
+    isLoggedIn.value = false
+    profile.value = null
+    if (clearTools) useToolsStore().clearUserData()
+  }
+
+  function handleAuthInvalidated() {
+    void clearAuthState()
+  }
+
+  function handleAuthRefreshed() {
+    void (async () => {
+      token.value = await getStoredAccessToken()
+      await scheduleAccessTokenExpiry()
+    })()
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener(AUTH_INVALIDATED_EVENT, handleAuthInvalidated)
+    window.addEventListener(AUTH_REFRESHED_EVENT, handleAuthRefreshed)
+    window.addEventListener('focus', () => {
+      void handleAccessTokenFocus()
+    })
   }
 
   async function init() {
-    if (!token.value) {
+    token.value = await getStoredAccessToken()
+    const hasRefreshSession = await hasStoredRefreshSession()
+
+    if (!token.value && !hasRefreshSession) {
       isLoggedIn.value = false
       profile.value = null
       return
     }
 
+    if (token.value && await isStoredAccessTokenExpired()) {
+      token.value = null
+      await clearStoredAccessToken()
+    } else if (token.value) {
+      await scheduleAccessTokenExpiry()
+    }
+
     try {
       const res = await usersApi.getProfile()
+      token.value = await getStoredAccessToken()
+      await scheduleAccessTokenExpiry()
       profile.value = res.data
       isLoggedIn.value = true
       if (profile.value) {
-        // 只缓存非敏感信息
+        // 本地资料缓存不包含密码，但仍按个人数据管理。
         profileCache.value[profile.value.username] = {
           email: profile.value.email,
           displayName: profile.value.displayName,
@@ -129,10 +245,13 @@ export const useUserStore = defineStore('user', () => {
         }
         persistProfileCache()
       }
-    } catch (err) {
-      // Token 无效或网络错误，清除登录状态
-      token.value = null
-      localStorage.removeItem(TOKEN_KEY)
+    } catch (err: unknown) {
+      // 只有明确 401 才说明服务端会话已失效。网络波动 / 5xx 保留
+      // Browser HttpOnly Refresh Session 标记与 Desktop DPAPI 凭据。
+      if (isApiUnauthorizedError(err)) {
+        await clearAuthState()
+        return
+      }
       isLoggedIn.value = false
       profile.value = null
     }
@@ -142,8 +261,9 @@ export const useUserStore = defineStore('user', () => {
     try {
       const res = await authApi.login(username, password)
       const accessToken = res.data.access_token
+      await persistAuthTokens(res.data)
       token.value = accessToken
-      localStorage.setItem(TOKEN_KEY, accessToken)
+      await scheduleAccessTokenExpiry()
 
       const userRes = await usersApi.getProfile()
       profile.value = userRes.data
@@ -168,12 +288,11 @@ export const useUserStore = defineStore('user', () => {
 
       return { success: true }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } }
       return {
         success: false,
-        error: isNetworkError(err)
+        error: isApiNetworkError(err)
           ? '网络连接失败，请检查网络后重试'
-          : formatErrorMessage(e.response?.data?.message) || '登录失败，请检查用户名和密码',
+          : getApiErrorMessage(err, '登录失败，请检查用户名和密码'),
       }
     }
   }
@@ -187,8 +306,9 @@ export const useUserStore = defineStore('user', () => {
     try {
       const res = await authApi.register(username, email, password)
       const accessToken = res.data.access_token
+      await persistAuthTokens(res.data)
       token.value = accessToken
-      localStorage.setItem(TOKEN_KEY, accessToken)
+      await scheduleAccessTokenExpiry()
 
       const userRes = await usersApi.getProfile()
       profile.value = userRes.data
@@ -223,24 +343,28 @@ export const useUserStore = defineStore('user', () => {
 
       return { success: true }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } }
       return {
         success: false,
-        error: isNetworkError(err)
+        error: isApiNetworkError(err)
           ? '网络连接失败，请检查网络后重试'
-          : formatErrorMessage(e.response?.data?.message) || '注册失败',
+          : getApiErrorMessage(err, '注册失败'),
       }
     }
   }
 
-  function logout() {
-    token.value = null
-    localStorage.removeItem(TOKEN_KEY)
-    isLoggedIn.value = false
-    profile.value = null
+  async function logout(options: { server?: boolean } = {}) {
+    const revokeServerSession = options.server ?? true
 
-    const toolsStore = useToolsStore()
-    toolsStore.clearUserData()
+    try {
+      if (revokeServerSession) {
+        const refreshToken = await getStoredRefreshToken()
+        await authApi.logout(refreshToken ?? undefined)
+      }
+    } catch {
+      // 即使离线或服务端会话已失效，也必须允许用户清除本地登录态。
+    } finally {
+      await clearAuthState()
+    }
   }
 
   async function updateProfile(updates: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> {
@@ -263,12 +387,11 @@ export const useUserStore = defineStore('user', () => {
       }
       return { success: true }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } }
       return {
         success: false,
-        error: isNetworkError(err)
+        error: isApiNetworkError(err)
           ? '网络连接失败，修改未保存'
-          : (e.response?.data?.message as string) || '更新资料失败',
+          : getApiErrorMessage(err, '更新资料失败'),
       }
     }
   }

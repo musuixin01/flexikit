@@ -16,6 +16,15 @@ export interface CrawledTool {
   discovered_at?: Date;
 }
 
+export interface RssFeedItem {
+  title: string;
+  link: string;
+  description: string;
+  pubDate: string;
+  category?: string;
+  creator?: string;
+}
+
 @Injectable()
 export class CrawlerService {
   protected readonly logger = new Logger(CrawlerService.name);
@@ -38,7 +47,7 @@ export class CrawlerService {
     let count = 0;
     for (const tool of tools) {
       try {
-        const saved = await this.discoveryService.addTool(tool as any);
+        const saved = await this.discoveryService.addTool(tool);
         if (saved) {
           count++;
         }

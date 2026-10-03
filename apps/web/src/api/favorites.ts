@@ -1,7 +1,7 @@
-import api from './index';
+import api from './client';
 
 export const favoritesApi = {
-  getFavorites: () => api.get('/favorites'),
-  addFavorite: (toolId: number) => api.post(`/favorites/${toolId}`),
-  removeFavorite: (toolId: number) => api.delete(`/favorites/${toolId}`),
+  getFavorites: () => api.get<number[]>('/favorites'),
+  addFavorite: (toolId: number) => api.post<void>(`/favorites/${toolId}`),
+  removeFavorite: (toolId: number) => api.delete<void>(`/favorites/${toolId}`),
 };

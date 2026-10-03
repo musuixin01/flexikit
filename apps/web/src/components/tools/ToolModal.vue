@@ -184,6 +184,8 @@ import { useUiStore } from '@/stores/ui'
 import type { Tool } from '@/types/tool'
 import { DEF_ICON } from '@/data/data'
 import { resolveApiUrl } from '@/api/runtime'
+import { toolsApi } from '@/api/tools'
+import type { TagRecommendation } from '@/api/tools'
 
 const tools = useToolsStore()
 const ui = useUiStore()
@@ -220,7 +222,7 @@ const colorPresets = [
 ]
 
 // 智能标签推荐
-const recommendedTags = ref<Array<{ tag: string; score: number; source: string }>>([])
+const recommendedTags = ref<TagRecommendation[]>([])
 const isLoadingTags = ref(false)
 
 /**
@@ -257,20 +259,14 @@ async function fetchRecommendedTags() {
   recommendedTags.value = []
 
   try {
-    const params = new URLSearchParams()
-    params.set('name', form.name)
-    params.set('description', form.desc)
-    params.set('url', form.url)
-    if (form.cat) {
-      params.set('category', form.cat)
-    }
-    params.set('limit', '10')
-
-    const response = await fetch(resolveApiUrl(`/api/tools/recommend-tags?${params.toString()}`))
-    if (response.ok) {
-      const data = await response.json()
-      recommendedTags.value = data
-    }
+    const response = await toolsApi.recommendTags({
+      name: form.name,
+      description: form.desc,
+      url: form.url || undefined,
+      category: form.cat || undefined,
+      limit: 10,
+    })
+    recommendedTags.value = response.data
   } catch (err) {
     console.error('获取推荐标签失败:', err)
     ui.showToast('获取推荐标签失败，请稍后重试')
@@ -367,7 +363,7 @@ function openForAdd() {
   nextTickFocus()
 }
 
-function openForAddWithData(tool: any) {
+function openForAddWithData(tool: Partial<Tool> & Pick<Tool, 'name'>) {
   resetForm()
   form.name = tool.name || ''
   form.url = tool.url || ''

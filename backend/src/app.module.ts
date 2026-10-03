@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -15,6 +16,10 @@ import { SeedModule } from './seed/seed.module';
 import { StatsModule } from './stats/stats.module'; // 确保这一行存在
 import { DiscoveryModule } from './discovery/discovery.module';
 import { CrawlerModule } from './crawler/crawler.module';
+import { AiModule } from './ai/ai.module';
+import { AdminModule } from './admin/admin.module';
+import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
+import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 
 @Module({
   imports: [
@@ -49,8 +54,20 @@ import { CrawlerModule } from './crawler/crawler.module';
     StatsModule, // 已添加
     DiscoveryModule,
     CrawlerModule,
+    AiModule,
+    AdminModule,
   ],
   controllers: [AppController], // 这里只保留 AppController
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ApiResponseInterceptor,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('*');
+  }
+}
