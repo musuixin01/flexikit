@@ -2832,3 +2832,40 @@
 - Error: Git reported trailing whitespace in several Markdown status lines and one extra blank line at EOF in `LauncherWidget.vue` / `MusicWidget.vue`.
 - Finding: no functional validation failed; the issues are formatting residue only.
 - Resolution: clean only the reported whitespace/EOF issues, restage, rerun `git diff --cached --check`, then continue baseline commit.
+
+
+### 2026-10-03 - Runtime port diagnostic PowerShell quoting failed
+
+- Command intent: inspect ports 3000/5173 and local compose status before starting FlexiKit.
+- Error: the shell layer expanded PowerShell \`$\` variables before PowerShell parsed the command, producing a syntax error; no project files or services were changed.
+- Resolution: use structured \`run_process\` with literal PowerShell argv for the diagnostic, then start only the required services.
+
+
+### 2026-10-03 - Structured PowerShell diagnostic was rejected before execution
+
+- Command intent: inspect FlexiKit runtime ports using structured process execution.
+- Error: the Runner rejected PowerShell command-mode arguments before starting because \`run_process\` accepts native executable argv only; no command ran and no project/service state changed.
+- Resolution: use native \`netstat -ano\` via structured process execution and parse only the required ports.
+
+
+### 2026-10-03 - Backend runtime dependency was unavailable
+
+- Command intent: start the built FlexiKit NestJS backend for local use.
+- Error: TypeORM retried the PostgreSQL connection 9 times and exited with \`ECONNREFUSED\`; a follow-up \`docker ps\` showed the Docker Desktop Linux engine pipe was unavailable.
+- Finding: Web/Vite is healthy on 5173; the backend failure is an unavailable local database container/runtime dependency, not a compile failure.
+- Resolution: start Docker Desktop and the project PostgreSQL service, then restart the backend on its configured port.
+
+
+### 2026-10-03 - Broad dependency file scan timed out
+
+- Command intent: locate compose/Docker configuration and backend runtime values before restoring the database dependency.
+- Error: recursive filesystem scanning traversed large dependency trees and hit the 30-second execution limit; no project files were changed.
+- Resolution: stop broad traversal and use Git pathspecs plus direct reads of known configuration files and Docker executable locations.
+
+
+### 2026-10-03 - Compose found an existing PostgreSQL container
+
+- Command intent: start FlexiKit PostgreSQL and Redis with the tracked compose file.
+- Error: Docker refused to create \`flexikit-postgres\` because an existing container already owns that name.
+- Finding: this indicates existing local database state is present; deleting/recreating it would risk unnecessary data loss.
+- Resolution: inspect the existing FlexiKit containers and start/reuse them instead of removing or recreating persistent state.
