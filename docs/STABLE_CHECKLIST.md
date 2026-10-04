@@ -126,6 +126,8 @@
 - [x] Launcher 拖拽根因修复（失效 handle、整块 tile 拖拽、Sortable fallback、严格类型）
 - [x] 鼠标交互回归（顶部控件/Widget 原生命中已验证；2026-09-23 用户实机确认整块拖动、四边/四角缩放、20px 吸附和右侧缩放不误开 Inspector 均正常）
 - [x] Canvas 动画 / 交互优化回归（统一自然曲线；编辑网格、顶部控制条、Palette/Inspector 入场；整理/重置几何补间；拖动/缩放期间禁用几何动画；pointercancel/blur 安全清理；Vue strict build + 基本 GUI 链路通过）
+- [x] 2026-10-04 Canvas 跟手性专项回归（Pointer Capture 保持；拖动/缩放过程像素级更新并由 RAF 合帧，释放时统一 20px 吸附；交互期间暂停持久化 timeout churn；拖动态取消几何 scale；后续补充 3px 激活阈值、纯点击不吸附、pointerId 隔离、lostpointercapture 清理、锁定态 cursor 与选中角点缩放提示；Web strict + desktop build、10 项交互结构断言均通过）
+- [x] 2026-10-04 Desktop 自动化回归（Rust fmt/check/build 通过；cargo test --all-targets 24/24；本地备份/迁移/隐私/数据生命周期/BYOK/AI Assistant/Prompt 历史回归全通过；Debug 实际启动出现 setup_complete、全局搜索快捷键注册成功并发现 434 条本机软件记录）
 - [x] 滚动视觉回归（Launcher 快速启动 / Launchpad / Desktop Organizer 静止态各连续 10 帧像素区域哈希唯一值 = 1；无闪动、无横向抖动；Inspector 已使用 stable gutter，继续在配置 GUI 专项回归中观察）
 - [~] 桌面层完整交互回归（桌面图标隐藏/恢复、HRGN 透明区域穿透、Widget 点击、真实 Explorer 重启后 Canvas 重建恢复均已验证；真实桌面右键菜单/框选仍保留人工扩展回归）
 - [x] 桌宠 -> Desktop Canvas 菜单联动回归（2026-09-23 Windows 11：通过真实 UI Automation 打开桌宠菜单并触发“桌面画布”，Canvas 成功显示）

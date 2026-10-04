@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "FlexiKit Browser Companion",
+  "version": "0.1.0",
+  "description": "Add the current website to your FlexiKit toolbox.",
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_title": "FlexiKit Browser Companion"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ]
+}

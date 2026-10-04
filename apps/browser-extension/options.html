@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlexiKit 连接设置</title>
+  <style>
+    body{margin:0;background:#f5f6f8;color:#171717;font:14px/1.5 system-ui,sans-serif}
+    main{box-sizing:border-box;max-width:640px;margin:48px auto;padding:28px;border-radius:18px;background:#fff;box-shadow:0 12px 40px #0001}
+    h1{margin:0 0 8px;font-size:24px}.hint{margin:0 0 24px;color:#666}
+    label{display:block;margin-top:16px;font-weight:600}input{box-sizing:border-box;width:100%;margin-top:7px;padding:11px 12px;border:1px solid #d9dce1;border-radius:9px;font:inherit}
+    button{margin-top:22px;padding:11px 18px;border:0;border-radius:9px;background:#171717;color:#fff;font:inherit;cursor:pointer}
+    #status{margin-left:12px}.success{color:#16833b}.error{color:#c52b2b}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FlexiKit 连接设置</h1>
+    <p class="hint">填写后端 API 地址和当前账户的 Access Token。令牌仅保存在浏览器同步存储中。</p>
+    <form id="settings">
+      <label>API 地址
+        <input id="apiBaseUrl" type="url" required placeholder="http://127.0.0.1:3001/v1">
+      </label>
+      <label>Access Token
+        <input id="accessToken" type="password" required autocomplete="off">
+      </label>
+      <button type="submit">保存设置</button>
+      <span id="status" aria-live="polite"></span>
+    </form>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

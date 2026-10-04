@@ -74,6 +74,8 @@ S2.2 已完成。S2.3 的 release、MSI/NSIS、隔离安装/卸载、0.1.0 → 0
 2026-09-30：S5.3“相似工具推荐”已完成端到端接入。服务端以最近公开收藏为语义 seeds，pgvector 候选 deterministic merge/de-dup，并对全部收藏做最终排除；向量缺失/陈旧/检索失败时按公开热门安全补齐。Discover 的“智能推荐”在登录且全部来源时消费 /recommendations，并继续在设备端执行已有 tag affinity 重排；匿名/来源筛选保留原 Discovery recommendation 路径。服务端不接收 device-local 行为，响应也不包含 similarity、embedding 或 provenance。联调同时恢复热度 UI fail-safe，后端热度不可用时只显示明确的本地占位顺序，不伪造数值。8 项最终门禁全部通过，当前执行指针进入“推荐解释”。
 2026-10-03：S5.3“推荐解释”已完成，Stage 5 全部任务闭环。Backend 新增 /recommendations/explained，在不改变原 /recommendations Tool[] 兼容接口的前提下，仅返回可审计解释 kind=similar_favorite/popular 与可选公开收藏种子名称；不返回 cosine/similarity 数字、embedding/provenance、seed/candidate rank 或置信度。Discover 登录+全部来源消费 explained endpoint，并在设备端把已有 tag/category affinity 转为“本机偏好匹配”原因；本地行为仍不上云。ToolCard 只在 Discovery 推荐卡片显示一行低干扰解释，公开热门 fallback 明确显示为“基于公开热度补充推荐”，不伪造热度/置信度。Web/Backend build、Web explanation、tag matching、heat UI、Backend similar recommendations、pgvector、type-audit 全通过。当前执行指针进入 Stage 6“真实用户测试计划”。
 
+2026-10-04：Browser Extension 入口完成初版闭环。`apps/browser-extension` 已具备 Manifest V3、网页右上角 FlexiKit 浮动入口、Shadow DOM 隔离 UI、当前网页信息采集（标题/URL/favicon/description）、用户点击确认后调用 FlexiKit Tool API 添加工具、连接设置与访问令牌配置流程；访问令牌仅保存在浏览器本机 storage.local，不使用账号同步，构建目录与浏览器测试 Profile 已加入忽略规则。扩展作为 Tool Capture 入口接入 Tool Catalog，后续继续完善 AI 分类、重复检测和商店发布流程。
+
 ---
 
 # Stage 1 — v0.1 Desktop Canvas 稳定基线
@@ -481,6 +483,8 @@ S2.2 已完成。S2.3 的 release、MSI/NSIS、隔离安装/卸载、0.1.0 → 0
 - [ ] 高 DPI / 双屏 / 多屏覆盖
 
 **临时产品打磨记录（2026-10-04）：Landing V2 已完成。** 首页从传统功能堆叠调整为“工具 + AI + Desktop Canvas 统一工作入口”的产品叙事，新增可交互 Workspace Preview、能力证明带与隐私边界表达，统一 Apple 风格玻璃层级/微交互/响应式，并清理已删除统计/技术栈区遗留样式。Web strict build 通过；此临时任务不改变 Stage 6 执行顺序，当前仍回到“真实用户测试计划”。
+
+**临时桌面体验打磨记录（2026-10-04）：Canvas 拖动/缩放链路已优化并完成自动化回归。** Widget 指针移动改为像素级跟手 + `requestAnimationFrame` 合帧，20px 栅格仅在释放时吸附；交互期间暂停布局持久化调度，结束后统一保存，并移除拖动时几何放大以减少锚点漂移。后续继续补上 3px 拖动激活阈值，使纯点击只选中不触发吸附；拖动事件按 pointerId 隔离并处理 lostpointercapture，避免异常捕获/额外指针干扰；锁定态与选中缩放角点的视觉提示也已收敛。Web strict/desktop build、交互结构断言均通过，前序 Rust fmt/check/debug build、24/24 原生测试、本地数据/隐私/BYOK/AI Assistant 回归与 Debug 启动诊断保持通过。真实右键/框选、混合 DPI/双屏以及“桌宠→添加桌面组件”的完整鼠标链路仍按既有门禁保留人工实机回归。本临时任务不改变 Stage 6 执行顺序，当前仍回到“真实用户测试计划”。
 
 ## Stage 6 完成门槛
 

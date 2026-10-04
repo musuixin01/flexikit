@@ -2877,3 +2877,88 @@
 - Error: transactional apply_text_edits first rejected the mixed LF/CRLF Markdown batch; subsequent guarded byte retries were also rejected before write because the CHANGELOG marker was not unique and the retry asserted uniqueness.
 - Finding: all rejected attempts left the documentation files unchanged.
 - Resolution: preflight every target SHA first, use the known Unreleased CHANGELOG byte anchor plus unique structural markers for the other files, and preserve each file's local newline format.
+
+### 2026-10-04 - Desktop Rust structured cargo check failed
+
+- Command intent: validate the Desktop native layer with cargo check --all-targets after the Canvas drag-interaction optimization.
+- Error: WebCodex structured cargo_check started the command but returned exit code 101 / compile_error without bounded compiler diagnostics in the direct response.
+- Finding: cargo fmt --check --all, Web strict build, and Web desktop-mode build had already passed; no Rust source was changed by this task, so the failure requires direct compiler-output diagnosis before any source change.
+- Resolution: run the same Cargo check through a bounded native process to capture the actual compiler/linker environment error, fix only the verified cause, then rerun the structured validation.
+
+### 2026-10-04 - Error log structured append rejected mixed line endings
+
+- Command intent: append the Rust validation failure to .agents/skills/errors-log.md with the guarded structured editor.
+- Error: the editor rejected the transaction because this historical log contains mixed LF and CRLF line endings; no file was modified.
+- Resolution: preserve the existing bytes and use one bounded append-only write for the new entries instead of rewriting or normalizing the entire historical log.
+### 2026-10-04 - Desktop Rust cargo check root cause confirmed
+
+- Diagnosis: direct cargo check --all-targets failed while compiling swhom-sys because cc-rs attempted to execute the stale compiler path D:\VisualStudio2022\...\cl.exe.
+- Verification: the expected D:\DevTools\VisualStudio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat and MSVC tool directory both exist; current process CC, CXX, and VSINSTALLDIR are unset.
+- Resolution: initialize the known-good x64 Build Tools environment through cvars64.bat for Cargo validation, without changing project source or global machine configuration.
+### 2026-10-04 - Desktop interaction source assertion used an over-specific CSS selector
+
+- Command intent: verify drag RAF, pixel-follow movement, release snapping, persistence gating, Widget registration, and Pet-to-Canvas linkage with source-level assertions.
+- Error: the first assertion expected `:global(.canvas-pointer-active)` while the real scoped CSS correctly uses `:global(html.canvas-pointer-active)`; all other interaction/linkage assertions passed.
+- Finding: this was a test-string mismatch, not a Canvas implementation failure.
+- Resolution: inspect the actual scoped selector, keep the production CSS unchanged, and rerun the same assertion with the real selector.
+### 2026-10-04 - Desktop optimization documentation batch rejected mixed line endings
+
+- Command intent: close the Desktop drag/testing task by synchronizing MASTER_PLAN, STABLE_CHECKLIST, TECH_DEBT, DESKTOP_CANVAS and CHANGELOG in one guarded transactional edit.
+- Error: the structured editor rejected the entire batch because at least one historical Markdown target contains mixed LF/CRLF line endings; it explicitly reported that no files were modified.
+- Resolution: split documentation updates per file and use exact unique single-line anchors; do not normalize or rewrite historical Markdown and preserve existing MASTER_PLAN/user edits.
+### 2026-10-04 - WebCodex script execution fallback
+
+- Command intent: use the structured run_script helper for the Canvas interaction edit.
+- Error: the direct adaptive runtime rejected the helper route, and the gateway runtime only admitted shell variants for that tool; no project command or source change was executed by the rejected calls.
+- Resolution: use structured run_process with the existing Python executable and stdin, keep SHA + exact-anchor guards, then continue with normal build validation.
+### 2026-10-04 - Release preparation tool fallback and guarded extension edit
+
+- Command intent: inspect release inputs and clean the untracked browser-extension test artifacts before packaging.
+- Error: the adaptive runtime rejected search_and_read, so inspection fell back to search_project_texts/read_files. A later guarded Python batch updated background.js, then stopped because options.js contained two chrome.storage.sync anchors instead of the assumed one.
+- Finding: the failed batch did not delete test profiles or rewrite the remaining extension files; only background.js changed from storage.sync to storage.local.
+- Resolution: re-read the three extension source files, log the partial write, then use exact per-file anchors for both options.js occurrences before cleaning generated directories.
+### 2026-10-04 - Windows release command required shell execution
+
+- Command intent: initialize the known-good MSVC x64 environment and run the Tauri Windows release build.
+- Error: structured run_process rejected the command before execution because call and && are shell grammar; no command started and no files changed.
+- Resolution: rerun the same release command through run_shell, keeping the version/build gates unchanged.
+### 2026-10-04 - Release shell timeout rejected before start
+
+- Command intent: run the MSVC-initialized Tauri Windows package build through run_shell.
+- Error: run_shell rejected timeout_secs=1800 because its direct shell timeout is capped at 120 seconds; no command started and no files changed.
+- Resolution: use the long-running job execution path for the same release command, then observe the existing job to completion instead of redispatching it.
+### 2026-10-04 - Windows release shell quoting failed before Tauri build
+
+- Command intent: initialize vcvars64 and run the Tauri Windows release package build through run_shell.
+- Error: nested cmd.exe quoting caused the vcvars64 path to be parsed with an extra escaped quote, so Windows reported the command as unrecognized and Tauri compilation did not start.
+- Resolution: write the two-step release command to a temporary batch file under the ignored Tauri target directory, execute that file, then delete the temporary script after packaging.
+### 2026-10-04 - Release documentation script quoting rejected
+
+- Command intent: add Browser Companion release notes to CHANGELOG and synchronize the local-only token storage note in MASTER_PLAN.
+- Error: the JavaScript tool wrapper parsed Markdown backticks inside the embedded Python payload as wrapper syntax and rejected the call before execution; no files changed.
+- Resolution: retry the same exact SHA-guarded documentation edits without backticks in the embedded payload.
+### 2026-10-04 - Release documentation retry still contained a backtick anchor
+
+- Command intent: retry CHANGELOG and MASTER_PLAN release-note synchronization without Markdown backticks in replacement text.
+- Error: the exact old MASTER_PLAN anchor still contained backticks, so the JavaScript wrapper rejected the call before execution; no documentation changed.
+- Resolution: use a shorter exact anchor around the access-token sentence that contains no backticks, leaving the existing path formatting untouched.
+### 2026-10-04 - Release job observation compatibility fallback
+
+- Command intent: wait for and observe the long-running Tauri release Job without redispatching it.
+- Error: wait_for_job_readiness was unavailable through the direct adaptive runtime, and the current observe_jobs contract rejected newer wake_on/wait options.
+- Resolution: keep the same existing Job id and use the supported observe_jobs form with job_id plus tail_lines only; the original release Job later completed successfully.
+### 2026-10-04 - CHANGELOG release-note anchor used the wrong newline form
+
+- Command intent: add the Browser Companion release bullet and synchronize MASTER_PLAN.
+- Error: the byte-level CHANGELOG anchor expected LF after the heading, but this historical file uses a different local newline form at that location; the guarded batch stopped before changing CHANGELOG or MASTER_PLAN.
+- Resolution: detect the heading line ending from the existing bytes, insert using that exact newline sequence, and keep all other historical bytes unchanged.
+### 2026-10-04 - CHANGELOG contains multiple 新增 headings
+
+- Command intent: insert the Browser Companion bullet beneath the CHANGELOG 新增 heading while preserving line endings.
+- Error: the guarded scan found two matching 新增 headings in the full historical changelog and refused an ambiguous insertion; CHANGELOG and MASTER_PLAN remained unchanged.
+- Resolution: target the first Unreleased 新增 section using adjacent Product Optimization content as a unique structural anchor.
+### 2026-10-04 - CHANGELOG diagnostic hit Windows console encoding
+
+- Command intent: print context around duplicate CHANGELOG section headings before a precise release-note insertion.
+- Error: Python found the target heading but Windows console GBK encoding could not print an emoji in the surrounding line, so the diagnostic exited early; no source or documentation file was modified.
+- Resolution: stop printing Unicode context and use the already-confirmed first heading position as a byte offset, preserving the file's existing newline bytes.

@@ -466,13 +466,21 @@ function handleToolClick(tool: DiscoveryCardTool) {
   }
 }
 
-// 添加工具到我的工具箱（打开编辑模态框）
-function handleAddTool(tool: DiscoveryCardTool) {
+// 快捷添加工具到我的工具箱
+async function handleAddTool(tool: DiscoveryCardTool) {
   if (!user.isLoggedIn) {
     ui.showToast('请先登录后再添加工具');
     return;
   }
-  toolModalRef.value?.openForAddWithData(tool);
+
+  const exists = toolsStore.allTools.some(item => item.url === tool.url || item.name === tool.name)
+  if (exists) {
+    ui.showToast('该工具已经在我的工具箱中')
+    return
+  }
+
+  await toolsStore.addCustomTool(tool)
+  ui.showToast(`已添加 ${tool.name}`)
 }
 
 // 工具保存成功回调

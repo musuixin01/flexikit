@@ -148,7 +148,7 @@
 
 - Tauri 桌面端已接入
 - 桌宠能力保留并继续作为独立交互入口
-- Desktop Canvas 已建立：独立窗口、自由布局、Registry、持久化，现有 Clock/Search/Launcher/Disk/Todo/Clipboard/Music/AI Prompt Widgets
+- Desktop Canvas 已建立：独立窗口、自由布局、Registry、持久化；当前内置 Desktop Organizer / Clock / Calendar / Folder / System Monitor / Notes / Weather / Launcher / Search / Disk / Todo / Clipboard / Music / AI 共 14 类 Widget
 - Windows 桌面层挂载已实现：经典 WorkerW + Windows 11 `SHELLDLL_DefView -> Progman` fallback；debug HWND 烟测已确认 Canvas 实际成为 Progman 子窗口
 - Canvas 非编辑模式已改用 Win32 HRGN 原生窗口区域，只保留 Widget / 控制条 / 弹层命中区域；`GetWindowRgnBox` 已验证为 Complex Region
 - Explorer 恢复 watchdog 已升级并通过真实重启回归：如果 Canvas HWND 仍活着则轻量 reattach；如果 Explorer 连 child HWND 一起销毁，则等待桌面父层 ready 后用 `canvas-recovery-N` 代次 label 重建 WebView，恢复 attach / HRGN / 可见状态；失败的临时恢复窗口会销毁后重试
@@ -159,8 +159,9 @@
 - Widget 已支持 Shift 多选、groupId 持久化、组合 / 拆分与组合联动移动；删除组成员后会清理单成员残留组
 - Canvas 已统一为 20px 栅格：默认布局、拖动/缩放、新增 Widget 空位放置和手动“整理”共用同一对齐规则
 - 默认 starter layout 已重做为紧凑两排并降低核心 Widget 默认尺寸；兼容历史 4/5 组件 starter，并针对开发阶段遗留的“6 组件 + 重复 Launcher”签名做一次性去重迁移；实机 LevelDB 最新记录已验证为 5 组件新布局
-- 编辑拖动改为 Pointer Capture + 整卡拖动；布局持久化采用 120ms 防抖，编辑态不再每帧重复提交全屏 HRGN
+- 编辑拖动采用 Pointer Capture + 整卡拖动；2026-10-04 进一步改为像素级跟手 + requestAnimationFrame 合帧，20px 网格只在指针释放后吸附；拖动/缩放期间暂停 120ms 布局持久化调度，结束后统一恢复，避免高频 reactive/localStorage timeout churn；新增 3px 激活阈值，纯点击不会进入 frame interaction 或触发吸附，move/cancel/up 按当前 pointerId 隔离，并用 lostpointercapture 兜底清理；编辑态也不再每帧重复提交全屏 HRGN
 - Canvas Motion V1 已完成：非指针布局变化支持 300ms 几何补间；真实拖动/缩放期间通过全局 pointer-active 状态禁用所有 Widget 几何 transition；补充 pointercancel/blur 清理和 reduced-motion 降级
+- 2026-10-04 拖动态不再使用 transform scale，改为 grabbing 光标 + 阴影/描边反馈，避免视觉中心缩放造成鼠标锚点漂移；专项 Web/Rust/本地数据与 AI 回归、Debug 启动诊断均通过。真实双屏/混合 DPI、桌面右键/框选和桌宠“添加桌面组件”完整 GUI 链路仍属于人工门禁，不能用源码断言替代。
 - Launcher 原 Sortable handle 因 `.drag-grip{pointer-events:none}` 无法命中，现改为整 tile 拖动并启用 fallback；Widget 主体拖动/缩放真实鼠标回归已通过，Launcher 排序仍在后续完整交互回归中继续观察
 - Inspector / Launcher / Launchpad 已增加稳定 scrollbar gutter；Launcher 快速启动、Launchpad、Desktop Organizer 的 S1.9 连续 10 帧像素稳定性测试均为唯一哈希 1，未再观察到滚动条闪动/横向抖动；Inspector 继续随配置 GUI 专项覆盖
 - 外观 Inspector 已支持名称、透明度、圆角、玻璃模糊与整组锁定

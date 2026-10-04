@@ -104,9 +104,14 @@ interface InteractionState {
   direction: ResizeDirection | null
   pointerId: number
   captureElement: HTMLElement
+  active: boolean
 }
 
+const POINTER_ACTIVATION_DISTANCE = 3
+
 let interaction: InteractionState | null = null
+let pointerFrame: number | null = null
+let pendingPointerPosition: { x: number; y: number } | null = null
 const interactionMode = ref<InteractionState['mode'] | null>(null)
 
 function setPointerInteractionActive(active: boolean): void {
@@ -114,9 +119,12 @@ function setPointerInteractionActive(active: boolean): void {
 }
 
 function activate(event: PointerEvent): void {
-  canvas.bringToFront(props.widget.id)
-  if (!props.editing) return
+  if (!props.editing) {
+    canvas.bringToFront(props.widget.id)
+    return
+  }
   if (props.widget.locked || event.button !== 0) {
+    canvas.bringToFront(props.widget.id)
     canvas.selectWidget(props.widget.id, event.shiftKey)
     return
   }
@@ -138,7 +146,7 @@ function beginInteraction(
   event: PointerEvent,
   direction: ResizeDirection | null = null,
 ): void {
-  if (event.button !== 0) return
+  if (event.button !== 0 || interaction) return
   canvas.bringToFront(props.widget.id)
   if (!canvas.isSelected(props.widget.id)) canvas.selectWidget(props.widget.id, event.shiftKey)
 
@@ -165,26 +173,41 @@ function beginInteraction(
     direction,
     pointerId: event.pointerId,
     captureElement,
+    active: false,
   }
-  interactionMode.value = mode
-  setPointerInteractionActive(true)
   event.preventDefault()
   window.addEventListener('pointermove', onPointerMove)
-  window.addEventListener('pointerup', endInteraction, { once: true })
-  window.addEventListener('pointercancel', endInteraction, { once: true })
-  window.addEventListener('blur', endInteraction, { once: true })
+  window.addEventListener('pointerup', endInteraction)
+  window.addEventListener('pointercancel', endInteraction)
+  window.addEventListener('blur', endInteraction)
+  captureElement.addEventListener('lostpointercapture', onLostPointerCapture)
 }
 
-function onPointerMove(event: PointerEvent): void {
-  if (!interaction) return
-  const dx = event.clientX - interaction.startX
-  const dy = event.clientY - interaction.startY
+function activateInteraction(clientX: number, clientY: number): boolean {
+  if (!interaction) return false
+  if (interaction.active) return true
+
+  const dx = clientX - interaction.startX
+  const dy = clientY - interaction.startY
+  if (Math.hypot(dx, dy) < POINTER_ACTIVATION_DISTANCE) return false
+
+  interaction.active = true
+  interactionMode.value = interaction.mode
+  canvas.beginFrameInteraction()
+  setPointerInteractionActive(true)
+  return true
+}
+
+function applyPointerPosition(clientX: number, clientY: number): void {
+  if (!interaction || !activateInteraction(clientX, clientY)) return
+  const dx = clientX - interaction.startX
+  const dy = clientY - interaction.startY
 
   if (interaction.mode === 'move') {
     for (const target of interaction.targets) {
       canvas.updateFrame(target.id, {
-        x: Math.round((target.x + dx) / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE,
-        y: Math.round((target.y + dy) / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE,
+        x: Math.round(target.x + dx),
+        y: Math.round(target.y + dy),
       })
     }
     return
@@ -203,18 +226,18 @@ function onPointerMove(event: PointerEvent): void {
   let height = original.height
 
   if (direction.includes('e')) {
-    width = Math.max(minimum, Math.round((original.width + dx) / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE)
+    width = Math.max(minimum, Math.round(original.width + dx))
   }
   if (direction.includes('s')) {
-    height = Math.max(minimum, Math.round((original.height + dy) / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE)
+    height = Math.max(minimum, Math.round(original.height + dy))
   }
   if (direction.includes('w')) {
-    const nextX = Math.round((original.x + dx) / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE
+    const nextX = Math.round(original.x + dx)
     x = Math.min(nextX, right - minimum)
     width = right - x
   }
   if (direction.includes('n')) {
-    const nextY = Math.round((original.y + dy) / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE
+    const nextY = Math.round(original.y + dy)
     y = Math.min(nextY, bottom - minimum)
     height = bottom - y
   }
@@ -222,24 +245,74 @@ function onPointerMove(event: PointerEvent): void {
   canvas.updateFrame(props.widget.id, { x, y, width, height })
 }
 
-function endInteraction(): void {
+function flushPointerMove(): void {
+  pointerFrame = null
+  const pending = pendingPointerPosition
+  pendingPointerPosition = null
+  if (pending) applyPointerPosition(pending.x, pending.y)
+}
+
+function onPointerMove(event: PointerEvent): void {
+  if (!interaction || event.pointerId !== interaction.pointerId) return
+  pendingPointerPosition = { x: event.clientX, y: event.clientY }
+  if (pointerFrame === null) pointerFrame = window.requestAnimationFrame(flushPointerMove)
+}
+
+function onLostPointerCapture(event: PointerEvent): void {
+  if (!interaction || event.pointerId !== interaction.pointerId) return
+  endInteraction()
+}
+
+function endInteraction(event?: Event): void {
   if (!interaction) return
+  if (event instanceof PointerEvent && event.pointerId !== interaction.pointerId) return
   const current = interaction
-  for (const target of current.targets) canvas.snapWidgetFrame(target.id)
-  if (current.mode === 'resize') canvas.snapWidgetFrame(props.widget.id)
+  const allowActivation = event instanceof PointerEvent && event.type === 'pointerup'
+
+  if (event instanceof PointerEvent && (allowActivation || current.active)) {
+    pendingPointerPosition = { x: event.clientX, y: event.clientY }
+  }
+  if (pointerFrame !== null) {
+    window.cancelAnimationFrame(pointerFrame)
+    pointerFrame = null
+  }
+  const pending = pendingPointerPosition
+  pendingPointerPosition = null
+  if (pending && (current.active || allowActivation)) applyPointerPosition(pending.x, pending.y)
+
+  window.removeEventListener('pointermove', onPointerMove)
+  window.removeEventListener('pointerup', endInteraction)
+  window.removeEventListener('pointercancel', endInteraction)
+  window.removeEventListener('blur', endInteraction)
+  current.captureElement.removeEventListener('lostpointercapture', onLostPointerCapture)
+
+  if (current.active) {
+    for (const target of current.targets) canvas.snapWidgetFrame(target.id)
+    canvas.endFrameInteraction()
+    setPointerInteractionActive(false)
+  }
+
+  interaction = null
+  interactionMode.value = null
   if (current.captureElement.hasPointerCapture?.(current.pointerId)) {
     current.captureElement.releasePointerCapture(current.pointerId)
   }
-  interaction = null
-  interactionMode.value = null
-  setPointerInteractionActive(false)
-  window.removeEventListener('pointermove', onPointerMove)
-  window.removeEventListener('pointercancel', endInteraction)
-  window.removeEventListener('blur', endInteraction)
 }
 
 onBeforeUnmount(() => {
-  if (interaction) setPointerInteractionActive(false)
+  if (pointerFrame !== null) window.cancelAnimationFrame(pointerFrame)
+  pointerFrame = null
+  pendingPointerPosition = null
+  if (interaction) {
+    const current = interaction
+    current.captureElement.removeEventListener('lostpointercapture', onLostPointerCapture)
+    if (current.active) {
+      canvas.endFrameInteraction()
+      setPointerInteractionActive(false)
+    }
+    interaction = null
+    interactionMode.value = null
+  }
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerup', endInteraction)
   window.removeEventListener('pointercancel', endInteraction)
@@ -251,10 +324,12 @@ onBeforeUnmount(() => {
 .widget-host{--widget-base:var(--glass-bg);--widget-edge:var(--text-primary);position:absolute;overflow:hidden;background:linear-gradient(145deg,rgb(255 255 255 / 16%),transparent 48%),color-mix(in srgb,var(--widget-base) var(--widget-surface-opacity),transparent);backdrop-filter:blur(var(--widget-blur)) saturate(150%);-webkit-backdrop-filter:blur(var(--widget-blur)) saturate(150%);border:1px solid color-mix(in srgb,var(--widget-edge) var(--widget-border-strength),transparent);box-shadow:0 12px 38px rgb(0 0 0 / var(--widget-shadow-alpha)),inset 0 1px 0 rgb(255 255 255 / 22%),inset 0 0 0 1px rgb(255 255 255 / 4%);transition:left .3s cubic-bezier(.25,.1,.25,1),top .3s cubic-bezier(.25,.1,.25,1),width .3s cubic-bezier(.25,.1,.25,1),height .3s cubic-bezier(.25,.1,.25,1),border-color .3s cubic-bezier(.25,.1,.25,1),box-shadow .3s cubic-bezier(.25,.1,.25,1),background .3s cubic-bezier(.25,.1,.25,1),backdrop-filter .3s cubic-bezier(.25,.1,.25,1),transform .3s cubic-bezier(.25,.1,.25,1)}
 :global(html.canvas-pointer-active) .widget-host{transition:none!important}
 .widget-host:not(.is-editing):hover{box-shadow:0 16px 44px rgb(0 0 0 / 10%),inset 0 1px 0 rgb(255 255 255 / 26%),inset 0 0 0 1px rgb(255 255 255 / 5%)}
-.widget-host.is-editing{border-color:color-mix(in srgb,var(--primary) 25%,var(--glass-border));box-shadow:0 10px 34px rgb(0 0 0 / 8%),0 0 0 1px color-mix(in srgb,var(--primary) 9%,transparent),inset 0 1px 0 rgb(255 255 255 / 30%);cursor:move;touch-action:none}
+.widget-host.is-editing{border-color:color-mix(in srgb,var(--primary) 25%,var(--glass-border));box-shadow:0 10px 34px rgb(0 0 0 / 8%),0 0 0 1px color-mix(in srgb,var(--primary) 9%,transparent),inset 0 1px 0 rgb(255 255 255 / 30%);touch-action:none}
+.widget-host.is-editing:not(.is-locked){cursor:grab}
+.widget-host.is-editing.is-locked{cursor:default}
 .widget-host.is-selected{border-color:color-mix(in srgb,var(--primary) 72%,var(--glass-border));box-shadow:0 12px 36px rgb(0 0 0 / 10%),0 0 0 2px color-mix(in srgb,var(--primary) 34%,transparent),inset 0 1px 0 rgb(255 255 255 / 30%)}
 .widget-host.is-moving,.widget-host.is-resizing{will-change:left,top,width,height;box-shadow:0 18px 46px rgb(0 0 0 / 14%),0 0 0 2px color-mix(in srgb,var(--primary) 30%,transparent),inset 0 1px 0 rgb(255 255 255 / 32%)}
-.widget-host.is-moving{transform:scale(1.008)}
+.widget-host.is-moving{cursor:grabbing}
 .widget-host.is-grouped.is-editing:not(.is-selected){box-shadow:0 10px 34px rgb(0 0 0 / 8%),0 0 0 1px color-mix(in srgb,var(--primary) 22%,transparent),inset 0 1px 0 rgb(255 255 255 / 30%)}
 .widget-host.is-locked{border-style:dashed}
 .widget-host.tone-dark{--widget-base:rgb(12 17 25);--widget-edge:white;--glass-bg:rgba(12,17,25,.86);--glass-border:rgba(255,255,255,.1);--text-primary:#f4f6f8;--text-secondary:rgba(238,242,246,.76);--text-tertiary:rgba(224,230,236,.5);--btn-bg:rgba(255,255,255,.055);--btn-bg-hover:rgba(255,255,255,.1);--input-bg:rgba(255,255,255,.055);--icon-surface:rgba(255,255,255,.07)}
@@ -283,6 +358,7 @@ onBeforeUnmount(() => {
 .resize-se{right:0;bottom:0;cursor:nwse-resize}
 .resize-sw{left:0;bottom:0;cursor:nesw-resize}
 .resize-nw{top:0;left:0;cursor:nwse-resize}
+.widget-host.is-selected .resize-ne::after,.widget-host.is-selected .resize-se::after,.widget-host.is-selected .resize-sw::after,.widget-host.is-selected .resize-nw::after{content:"";position:absolute;inset:4px;border-radius:2px;background:color-mix(in srgb,var(--primary) 82%,white);box-shadow:0 0 0 2px color-mix(in srgb,var(--glass-bg) 82%,transparent);pointer-events:none;opacity:.9;transition:opacity .3s cubic-bezier(.25,.1,.25,1)}
 .unknown-widget{height:100%;display:grid;place-content:center;gap:5px;text-align:center;color:var(--text-secondary)}
 .unknown-widget span{font-size:.68rem;color:var(--text-tertiary)}
 @keyframes widget-edit-bar-in{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}

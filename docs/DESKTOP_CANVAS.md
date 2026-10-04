@@ -194,14 +194,15 @@ Canvas 启动后会尝试：
 
 ## 栅格、拖动与滚动稳定性
 
-- Canvas 编辑模式统一使用 20px 栅格；移动和缩放都会吸附到同一网格
+- Canvas 编辑模式最终布局统一使用 20px 栅格；真实拖动/缩放过程中保持像素级 1:1 跟手，只有在交互结束时才吸附到同一 20px 网格，避免移动过程中逐格跳动
 - 默认 Widget 布局已改为 20px 倍数，新增 Widget 会扫描当前显示器空位，不再斜向错位堆叠
 - 顶部新增“整理”操作，可把当前已保存的凌乱布局重新按栅格无重叠排布，不会自动打乱现有布局
-- 编辑模式下整个 Widget 都可以拖动，并使用 Pointer Capture 保持连续拖动
+- 编辑模式下整个 Widget 都可以拖动，并使用 Pointer Capture 保持连续拖动；按下后需移动至少 3px 才真正进入 move/resize，因此纯点击只完成选中/置顶，不触发布局吸附或持久化
+- pointermove 只接收当前 pointerId，记录最新坐标并通过 requestAnimationFrame 每帧最多提交一次 frame 更新；pointerup / pointercancel / blur / lostpointercapture 会先 flush 最后坐标，再在已实际移动的前提下完成网格吸附并统一清理 Pointer 状态
 - Launcher 整理模式改为整块软件图标拖动，并启用 Sortable pointer fallback
 - Launcher 小组件、快速启动和 Launchpad 使用稳定 CSS Grid 单元
 - Inspector、Launcher 和 Launchpad 使用稳定 scrollbar gutter，减少滚动条出现时的布局闪动
-- Widget 布局持久化改为 120ms 防抖；编辑模式不再逐帧重复重算全屏 HRGN
+- Widget 布局持久化基础仍为 120ms 防抖；2026-10-04 起拖动/缩放期间暂停持久化调度并只标记待保存，释放后统一恢复调度，避免每个 pointer frame 反复清理/创建 timeout；编辑模式不再逐帧重复重算全屏 HRGN
 - 2026-09-23 用户实机确认：整卡拖动、四边/四角 8 向缩放、20px 吸附、右侧缩放不误开 Inspector 均正常；Desktop Organizer 双击文件夹与普通文件也正常打开
 - 2026-09-23 S1.9 最终回归：默认两排布局通过真实窗口实拍；Launcher 快速启动 / Launchpad / Organizer 各连续 10 帧稳定；Canvas 20 次显示/隐藏无失败；应用重启后默认布局持久化一致
 
@@ -212,9 +213,10 @@ Canvas 启动后会尝试：
 - Widget 组件库 / Inspector 使用 opacity + 微位移 + 轻 blur 的入场/退出；组件库条目增加轻量级错峰入场，但不引入长延迟
 - Widget 在“整理 / 重置 / 显示器布局重映射”等非指针操作时对 `left/top/width/height` 做平滑补间
 - 一旦用户开始真实拖动或缩放，会给 `html` 加临时 `canvas-pointer-active` 状态并立即关闭全部 Widget 几何 transition，保证鼠标 1:1 跟手；结束后再恢复动画
-- 当前被拖动 Widget 使用轻微提起反馈；普通态 Widget 不做几何放大，避免视觉边缘越出 Win32 RoundRect HRGN
+- 当前被拖动 Widget 只使用阴影、描边和 grabbing 光标形成提起反馈，不再做几何 scale，避免拖动时视觉锚点偏移并继续保证边缘不越出 Win32 RoundRect HRGN
 - `pointercancel` 和窗口失焦会主动结束交互并清理 Pointer 状态，降低 Alt-Tab / 系统打断后卡在拖动状态的概率
 - 所有新增动效支持 `prefers-reduced-motion: reduce`，系统要求减少动态效果时会关闭非必要动画
+- 2026-10-04 专项验证：Web strict / desktop-mode build 通过；Rust fmt/check/debug build 通过；原生 24/24 tests 通过；本地备份/迁移/隐私/数据生命周期/BYOK/AI Assistant/Prompt 历史回归通过；Debug 实际启动日志出现 setup_complete、global_search_shortcut_ready，并真实发现 434 条本机软件记录。
 
 ## 当前边界
 

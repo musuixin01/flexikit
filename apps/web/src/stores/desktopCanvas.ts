@@ -305,6 +305,8 @@ export const useDesktopCanvasStore = defineStore('desktopCanvas', () => {
   const selectedWidgetIds = ref<string[]>([])
   let persistTimer: ReturnType<typeof setTimeout> | null = null
   let persistenceSuspended = false
+  let frameInteractionDepth = 0
+  let persistQueuedDuringFrameInteraction = false
 
   const selectedWidgets = computed(() => selectedWidgetIds.value
     .map(id => widgets.value.find(widget => widget.id === id))
@@ -327,11 +329,33 @@ export const useDesktopCanvasStore = defineStore('desktopCanvas', () => {
 
   function schedulePersist(): void {
     if (!initialized.value || persistenceSuspended) return
+    if (frameInteractionDepth > 0) {
+      persistQueuedDuringFrameInteraction = true
+      return
+    }
     if (persistTimer !== null) clearTimeout(persistTimer)
     persistTimer = setTimeout(() => {
       persistTimer = null
       persist()
     }, 120)
+  }
+
+  function beginFrameInteraction(): void {
+    frameInteractionDepth += 1
+    if (frameInteractionDepth !== 1) return
+    if (persistTimer !== null) {
+      clearTimeout(persistTimer)
+      persistTimer = null
+      persistQueuedDuringFrameInteraction = true
+    }
+  }
+
+  function endFrameInteraction(): void {
+    if (frameInteractionDepth === 0) return
+    frameInteractionDepth -= 1
+    if (frameInteractionDepth > 0 || !persistQueuedDuringFrameInteraction) return
+    persistQueuedDuringFrameInteraction = false
+    schedulePersist()
   }
 
   function init(): void {
@@ -750,6 +774,8 @@ export const useDesktopCanvasStore = defineStore('desktopCanvas', () => {
     moveWidgetToMonitor,
     arrangeWidgets,
     snapWidgetFrame,
+    beginFrameInteraction,
+    endFrameInteraction,
     addWidget,
     updateWidget,
     updateFrame,
