@@ -74,7 +74,7 @@ S2.2 已完成。S2.3 的 release、MSI/NSIS、隔离安装/卸载、0.1.0 → 0
 2026-09-30：S5.3“相似工具推荐”已完成端到端接入。服务端以最近公开收藏为语义 seeds，pgvector 候选 deterministic merge/de-dup，并对全部收藏做最终排除；向量缺失/陈旧/检索失败时按公开热门安全补齐。Discover 的“智能推荐”在登录且全部来源时消费 /recommendations，并继续在设备端执行已有 tag affinity 重排；匿名/来源筛选保留原 Discovery recommendation 路径。服务端不接收 device-local 行为，响应也不包含 similarity、embedding 或 provenance。联调同时恢复热度 UI fail-safe，后端热度不可用时只显示明确的本地占位顺序，不伪造数值。8 项最终门禁全部通过，当前执行指针进入“推荐解释”。
 2026-10-03：S5.3“推荐解释”已完成，Stage 5 全部任务闭环。Backend 新增 /recommendations/explained，在不改变原 /recommendations Tool[] 兼容接口的前提下，仅返回可审计解释 kind=similar_favorite/popular 与可选公开收藏种子名称；不返回 cosine/similarity 数字、embedding/provenance、seed/candidate rank 或置信度。Discover 登录+全部来源消费 explained endpoint，并在设备端把已有 tag/category affinity 转为“本机偏好匹配”原因；本地行为仍不上云。ToolCard 只在 Discovery 推荐卡片显示一行低干扰解释，公开热门 fallback 明确显示为“基于公开热度补充推荐”，不伪造热度/置信度。Web/Backend build、Web explanation、tag matching、heat UI、Backend similar recommendations、pgvector、type-audit 全通过。当前执行指针进入 Stage 6“真实用户测试计划”。
 
-2026-10-04：Browser Extension 入口完成初版闭环。`apps/browser-extension` 已具备 Manifest V3、网页右上角 FlexiKit 浮动入口、Shadow DOM 隔离 UI、当前网页信息采集（标题/URL/favicon/description）、用户点击确认后调用 FlexiKit Tool API 添加工具、连接设置与访问令牌配置流程；访问令牌仅保存在浏览器本机 storage.local，不使用账号同步，构建目录与浏览器测试 Profile 已加入忽略规则。扩展作为 Tool Capture 入口接入 Tool Catalog，后续继续完善 AI 分类、重复检测和商店发布流程。
+2026-10-04：Browser Extension 当前仍处于 MVP 开发中，尚未完成发布门禁。`apps/browser-extension` 已具备 Manifest V3、网页右上角 FlexiKit 浮动入口、Shadow DOM 隔离 UI、当前网页信息采集（标题/URL/favicon/description）、用户点击确认后调用 FlexiKit Tool API 添加工具、连接设置与访问令牌配置流程；访问令牌仅保存在浏览器本机 storage.local，不使用账号同步，构建目录与浏览器测试 Profile 已加入忽略规则。扩展当前只作为 Tool Capture 原型继续开发，后续需补齐 AI 分类、重复检测、产品交互、浏览器兼容性、商店发布与正式验收；v0.1.0 GitHub Release 不包含浏览器扩展发行包。
 
 ---
 

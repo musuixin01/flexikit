@@ -2962,3 +2962,8 @@
 - Command intent: print context around duplicate CHANGELOG section headings before a precise release-note insertion.
 - Error: Python found the target heading but Windows console GBK encoding could not print an emoji in the surrounding line, so the diagnostic exited early; no source or documentation file was modified.
 - Resolution: stop printing Unicode context and use the already-confirmed first heading position as a byte offset, preserving the file's existing newline bytes.
+### 2026-10-04 - GitHub release asset deletion hit a transient TLS timeout
+
+- Command intent: remove the unfinished Browser Companion ZIP from the published v0.1.0 release.
+- Error: GitHub CLI failed while reading the release tag because the API TLS handshake timed out; the asset was not deleted.
+- Resolution: keep the corrected desktop-only release notes, delete the exact release asset by GitHub asset id, then regenerate and replace SHA256SUMS so it only covers the desktop installers.

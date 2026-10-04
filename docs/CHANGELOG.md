@@ -21,7 +21,7 @@
 - 🖱️ Desktop Canvas 拖动/缩放手感优化：指针过程改为像素级跟手 + RAF 合帧，20px 栅格仅在释放后吸附；交互期间暂停布局持久化调度并在结束后统一保存，移除拖动时 scale 放大；新增 3px 激活阈值，纯点击只选中不吸附，按 pointerId 隔离当前拖动并处理 lostpointercapture；锁定态光标和选中角点缩放手柄也更明确。
 
 ### 新增
-- 🌐 Browser Companion MVP：新增 Manifest V3 浏览器扩展入口，使用 Shadow DOM 注入当前网页快捷添加面板，采集标题 / URL / favicon / description 并在用户确认后调用 FlexiKit Tool API；连接地址与访问令牌通过设置页配置，令牌仅保存在浏览器本机 storage.local，不使用账号同步；构建目录与浏览器测试 Profile 已纳入忽略规则。
+- 🌐 Browser Companion（开发中）：已具备 Manifest V3、Shadow DOM 悬浮入口、当前网页信息采集与 Tool API 接入原型；访问令牌仅保存在浏览器本机 storage.local。当前仍缺完整产品化、重复检测/分类、发布流程与正式验收，因此不属于 v0.1.0 可发行功能。
 - 💬 原生桌面 AI 助手 V1：Desktop 新增 /assistant 与侧边栏入口，支持平台自动路由/显式 Provider/Model 和 OpenAI/Gemini/Anthropic BYOK；新增 JWT POST /v1/ai/assistant/generate，继续复用 S5.1 usage/retry/fallback。BYOK Key 仅在发送瞬间从 DPAPI Vault/浏览器运行期内存读取并作为单次请求临时传递，Prompt/Response 不入 usage ledger/数据库；当前页面消息仅 Vue 内存保存，刷新即清空。
 - 🧩 AI 当前工具上下文：成功打开 FlexiKit Tool 后仅在运行期内存记录安全元数据，Assistant 发送前可见并可关闭；仅传 id/name/category/web|local/hostname，不传本地路径。Backend 嵌套 DTO 强校验并把工具字段作为不可信描述数据注入，继续不持久化 Prompt/Response/context。
 - 📄 AI 当前文件上下文：Assistant 新增用户显式文件选择、更换、移除和逐次发送开关；Windows 原生 IFileOpenDialog 仅读取用户刚选中的单个 UTF-8 文本文件，32 KiB 字节上限且不向 WebView/Backend暴露绝对路径。Backend 对 basename/extension/content 再校验，正文保持 user-role 并加 untrusted-data guard，文件/Prompt/Response 继续不持久化。
